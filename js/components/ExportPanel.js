@@ -165,21 +165,22 @@ export function ExportPanel(props) {
               class="btn"
               disabled=${disabled}
               onClick=${handleExportJson}
-            >プロジェクトをJSON保存</button>
+            >ファイルに書き出す（バックアップ）</button>
             <button
               type="button"
               class="btn btn--ghost"
               onClick=${handleImportClick}
-            >JSONから読込</button>
+            >ファイルから読み込む</button>
             <button
               type="button"
               class="btn"
               disabled=${disabled}
               onClick=${onSaveLocal}
-            >localStorageに保存</button>
+            >このブラウザに保存</button>
           </div>
           <p class="muted export__note">
-            JSON保存はグリッドや設定を含む完全なデータです。別端末への移動やバックアップに使えます。
+            「このブラウザに保存」は次回この端末で開いたときに続きから使えます。
+            「ファイルに書き出す」は設定や図案を1つのファイルにまとめ、別の端末へ移したりバックアップに使えます。
           </p>
         </div>
 

@@ -13,6 +13,8 @@ import { brightness } from './colorDistance.js';
  * @property {boolean} [backgroundAsWhite]  透明部分を先に白で塗りつぶすか
  * @property {boolean} [contrastCorrection] 128中心の簡易コントラスト強調
  * @property {boolean} [outlineEnhancement] 輝度エッジを暗くして輪郭を強調
+ * @property {{sx:number,sy:number,sw:number,sh:number}} [srcRect] 元画像から使う範囲(px)。既定=全体
+ * @property {{dx:number,dy:number,dw:number,dh:number}} [destRect] 縮小先キャンバス内の描画範囲(px)。既定=全体。余白は背景色になる
  */
 
 /** 透明判定のアルファしきい値(これ未満は背景=エッジ処理対象外) */
@@ -43,10 +45,17 @@ export function pixelateToImageData(image, width, height, options) {
     ctx.fillRect(0, 0, w, h);
   }
 
+  // 元画像から使う範囲(src)と、縮小先キャンバス内の描画範囲(dest)。
+  // crop時は src を絞り、contain時は dest を中央に収め余白を背景色にする。
+  const iw = image.naturalWidth || image.width || w;
+  const ih = image.naturalHeight || image.height || h;
+  const src = opts.srcRect || { sx: 0, sy: 0, sw: iw, sh: ih };
+  const dst = opts.destRect || { dx: 0, dy: 0, dw: w, dh: h };
+
   // 平滑化を有効にして縮小(縮小時のアンチエイリアスで色が均される)
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(image, 0, 0, w, h);
+  ctx.drawImage(image, src.sx, src.sy, src.sw, src.sh, dst.dx, dst.dy, dst.dw, dst.dh);
 
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;

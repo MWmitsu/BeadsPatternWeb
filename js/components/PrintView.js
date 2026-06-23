@@ -1,87 +1,131 @@
 // ============================================================
 // 印刷用ビュー(A4想定の全画面オーバーレイ)
 // ------------------------------------------------------------
-// 図案を「印刷しやすい紙面」として組む専用コンポーネント。
-//   - 完成イメージ(色のみ)
-//   - 数字付き設計図(showNumbers:true, showGrid:true)
-//   - 色番号一覧表(番号/見本/HEX/色名/個数/割合)
-//   - メタ情報(横/縦/総ビーズ数, 作成日時)
-// canvas は React の管理外で生成するため ref コンテナへ手動挿入する。
-// 実際の @media print の見た目(余白・改ページ・.print-controls 非表示)は
-// styles.css 側で定義する前提。ここではクラス付与のみ行う。
+//  - 1ページ印刷: 完成イメージ + 数字付き設計図
+//  - 分割印刷:    図案を区画(タイル)に分け、各区画を1ページずつ印刷して貼り合わせる。
+//                 各区画に列番号・行番号の見出しを付け、概観図で位置を示す。
+//  - 色番号一覧表(番号/見本/HEX/色名/個数/割合)は常に表示。
+// canvas は React 管理外で生成し、ref コンテナへ手動挿入する。
+// 実際の @media print(余白・改ページ・操作ボタン非表示)は styles.css 側。
 // ============================================================
 
-import { html, useRef, useEffect } from '../lib/html.js';
-import { renderPatternToCanvas } from '../lib/renderPattern.js';
+import { html, useRef, useEffect, useState } from '../lib/html.js';
+import {
+  renderPatternToCanvas,
+  renderNumberedTileCanvas,
+  renderTileOverviewCanvas,
+} from '../lib/renderPattern.js';
 import { textColorFor } from '../utils/colorDistance.js';
+import { PRINT_TILE_OPTIONS } from '../types.js';
 
 /**
  * @param {Object} props
- * @param {{colors: import('../types.js').BeadColor[], cells: import('../types.js').BeadCell[], width: number, height: number}|null} props.pattern
- * @param {import('../types.js').BeadColor[]} props.colors
+ * @param {{colors:Array,cells:Array,width:number,height:number}|null} props.pattern
+ * @param {Array} props.colors
  * @param {string} props.title
  * @param {number} props.totalBeads
- * @param {string} props.createdAt   ISO文字列 or 表示用文字列
+ * @param {string} props.createdAt
  * @param {() => void} props.onClose
  */
 export function PrintView(props) {
   const { pattern, colors, title, totalBeads, createdAt, onClose } = props;
 
-  // canvas を差し込むコンテナ(完成イメージ / 数字付き設計図)
+  // 大きい図案は既定で分割印刷ON
+  const [split, setSplit] = useState(() =>
+    pattern ? Math.max(pattern.width, pattern.height) > 48 : false
+  );
+  const [tileSize, setTileSize] = useState(30);
+
   const previewRef = useRef(null);
   const blueprintRef = useRef(null);
+  const overviewRef = useRef(null);
+  const tilesRef = useRef(null);
 
-  // pattern が変わるたびに canvas を作り直してコンテナへ挿入する。
+  // 分割時の区画数
+  const cols = pattern ? Math.ceil(pattern.width / tileSize) : 0;
+  const rows = pattern ? Math.ceil(pattern.height / tileSize) : 0;
+  const tileCount = cols * rows;
+
   useEffect(() => {
-    const previewBox = previewRef.current;
-    const blueprintBox = blueprintRef.current;
-    if (!previewBox || !blueprintBox) return;
-
-    // 既存の canvas を一旦クリア(再描画時の重複防止)
-    previewBox.replaceChildren();
-    blueprintBox.replaceChildren();
-
     if (!pattern) return;
 
-    // 完成イメージ:色のみ(グリッド・数字なし)
-    const previewCanvas = renderPatternToCanvas(pattern, {
-      cellSize: 12,
-      showGrid: false,
-      showNumbers: false,
-      backgroundColor: '#FFFFFF',
-    });
-    previewCanvas.className = 'print-canvas';
-    previewBox.appendChild(previewCanvas);
+    if (!split) {
+      // --- 1ページ印刷: 完成イメージ + 数字付き設計図 ---
+      if (previewRef.current) {
+        previewRef.current.replaceChildren();
+        const c = renderPatternToCanvas(pattern, { cellSize: 12, showGrid: false, showNumbers: false });
+        c.className = 'print-canvas';
+        previewRef.current.appendChild(c);
+      }
+      if (blueprintRef.current) {
+        blueprintRef.current.replaceChildren();
+        const c = renderPatternToCanvas(pattern, { cellSize: 22, showGrid: true, showNumbers: true });
+        c.className = 'print-canvas';
+        blueprintRef.current.appendChild(c);
+      }
+      return;
+    }
 
-    // 数字付き設計図:グリッド + 数字(制作時に数えやすいよう大きめのマス)
-    const blueprintCanvas = renderPatternToCanvas(pattern, {
-      cellSize: 22,
-      showGrid: true,
-      showNumbers: true,
-      backgroundColor: '#FFFFFF',
-    });
-    blueprintCanvas.className = 'print-canvas';
-    blueprintBox.appendChild(blueprintCanvas);
-  }, [pattern, colors]);
+    // --- 分割印刷: 概観図 + 区画ごとのページ ---
+    if (overviewRef.current) {
+      overviewRef.current.replaceChildren();
+      const ov = renderTileOverviewCanvas(pattern, tileSize, tileSize);
+      ov.className = 'print-canvas print-overview__canvas';
+      overviewRef.current.appendChild(ov);
+    }
+    if (tilesRef.current) {
+      tilesRef.current.replaceChildren();
+      let n = 0;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          n += 1;
+          const region = { col: c * tileSize, row: r * tileSize, cols: tileSize, rows: tileSize };
+          const canvas = renderNumberedTileCanvas(pattern, region, { cellSize: 26 });
+          canvas.className = 'print-canvas';
 
-  // 作成日時を読みやすい日本語表記へ(失敗時は元文字列のまま)
+          const c0 = c * tileSize + 1;
+          const c1 = Math.min((c + 1) * tileSize, pattern.width);
+          const r0 = r * tileSize + 1;
+          const r1 = Math.min((r + 1) * tileSize, pattern.height);
+
+          const tile = document.createElement('section');
+          tile.className = 'print-tile';
+          const label = document.createElement('div');
+          label.className = 'print-tile__label';
+          label.textContent =
+            `区画 ${n}/${tileCount}（行${r + 1}・列${c + 1}）　横 ${c0}–${c1} / 縦 ${r0}–${r1}`;
+          tile.appendChild(label);
+          tile.appendChild(canvas);
+          tilesRef.current.appendChild(tile);
+        }
+      }
+    }
+  }, [pattern, split, tileSize]);
+
   const createdAtLabel = formatDate(createdAt);
-
-  // 色一覧は色番号順(id昇順)で表示
   const sortedColors = (colors || []).slice().sort((a, b) => a.id - b.id);
-
   const width = pattern ? pattern.width : 0;
   const height = pattern ? pattern.height : 0;
 
   return html`
     <div class="print-overlay" role="dialog" aria-modal="true" aria-label="印刷プレビュー">
       <div class="print-controls">
-        <button type="button" class="btn btn--primary" onClick=${() => window.print()}>
-          印刷する
-        </button>
-        <button type="button" class="btn btn--ghost" onClick=${onClose}>
-          閉じる
-        </button>
+        <button type="button" class="btn btn--primary" onClick=${() => window.print()}>印刷する</button>
+        <label class="print-controls__opt">
+          <input type="checkbox" checked=${split} onChange=${(e) => setSplit(e.target.checked)} />
+          <span>分割印刷</span>
+        </label>
+        ${split &&
+        html`
+          <label class="print-controls__opt">
+            <span>1区画</span>
+            <select value=${tileSize} onChange=${(e) => setTileSize(Number(e.target.value))}>
+              ${PRINT_TILE_OPTIONS.map((n) => html`<option key=${n} value=${n}>${n}×${n}マス</option>`)}
+            </select>
+          </label>
+          <span class="print-controls__count muted">全 ${tileCount} 区画</span>
+        `}
+        <button type="button" class="btn btn--ghost" onClick=${onClose}>閉じる</button>
       </div>
 
       <div class="print-sheet">
@@ -96,77 +140,73 @@ export function PrintView(props) {
 
         ${!pattern
           ? html`<p class="warn warn--error">図案がありません。先に画像を変換してください。</p>`
-          : html`
+          : !split
+          ? html`
               <section class="print-section">
                 <h2 class="print-section__title">完成イメージ</h2>
                 <div class="print-figure" ref=${previewRef}></div>
               </section>
-
               <section class="print-section">
                 <h2 class="print-section__title">数字付き設計図</h2>
                 <div class="print-figure" ref=${blueprintRef}></div>
               </section>
-
+            `
+          : html`
               <section class="print-section">
-                <h2 class="print-section__title">色番号一覧</h2>
-                <table class="print-colorlist">
-                  <thead>
-                    <tr>
-                      <th>番号</th>
-                      <th>見本</th>
-                      <th>HEX</th>
-                      <th>色名</th>
-                      <th>個数</th>
-                      <th>割合</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${sortedColors.map(
-                      (c) => html`
-                        <tr key=${c.id}>
-                          <td class="print-colorlist__num">${c.id}</td>
-                          <td>
-                            <span
-                              class="print-colorlist__swatch"
-                              style=${{
-                                backgroundColor: c.hex,
-                                color: textColorFor(c.hex),
-                              }}
-                            >
-                              ${c.id}
-                            </span>
-                          </td>
-                          <td class="print-colorlist__hex">${c.hex}</td>
-                          <td>${c.name || ''}</td>
-                          <td class="print-colorlist__count">${formatNumber(c.count)}</td>
-                          <td class="print-colorlist__ratio">${formatRatio(c.ratio)}%</td>
-                        </tr>
-                      `
-                    )}
-                  </tbody>
-                </table>
+                <h2 class="print-section__title">全体の概観（赤線が区画の区切り）</h2>
+                <div class="print-figure print-overview" ref=${overviewRef}></div>
+                <p class="muted">
+                  全 ${tileCount} 区画（横 ${cols} × 縦 ${rows}）。各区画を1ページずつ印刷し、
+                  列・行番号を合わせて貼り合わせてください。
+                </p>
               </section>
+              <div class="print-tiles" ref=${tilesRef}></div>
             `}
+
+        ${pattern &&
+        html`
+          <section class="print-section">
+            <h2 class="print-section__title">色番号一覧</h2>
+            <table class="print-colorlist">
+              <thead>
+                <tr><th>番号</th><th>見本</th><th>HEX</th><th>色名</th><th>個数</th><th>割合</th></tr>
+              </thead>
+              <tbody>
+                ${sortedColors.map(
+                  (c) => html`
+                    <tr key=${c.id}>
+                      <td class="print-colorlist__num">${c.id}</td>
+                      <td>
+                        <span
+                          class="print-colorlist__swatch"
+                          style=${{ backgroundColor: c.hex, color: textColorFor(c.hex) }}
+                        >${c.id}</span>
+                      </td>
+                      <td class="print-colorlist__hex">${c.hex}</td>
+                      <td>${c.name || ''}</td>
+                      <td class="print-colorlist__count">${formatNumber(c.count)}</td>
+                      <td class="print-colorlist__ratio">${formatRatio(c.ratio)}%</td>
+                    </tr>
+                  `
+                )}
+              </tbody>
+            </table>
+          </section>
+        `}
       </div>
     </div>
   `;
 }
 
-// ---- 表示整形ヘルパー(モジュール内専用) ----------------------
-
-/** 数値に桁区切りを付ける(非数値は素直に文字列化) */
+// ---- 表示整形ヘルパー ----------------------------------------
 function formatNumber(n) {
   if (typeof n !== 'number' || !Number.isFinite(n)) return String(n ?? '');
   return n.toLocaleString('ja-JP');
 }
-
-/** 割合を小数1桁で表示(非数値は 0) */
 function formatRatio(r) {
   if (typeof r !== 'number' || !Number.isFinite(r)) return '0.0';
   return r.toFixed(1);
 }
-
-/** ISO文字列等を「YYYY/MM/DD HH:MM」へ。失敗時は元の文字列を返す。 */
 function formatDate(value) {
   if (!value) return '';
   const d = new Date(value);

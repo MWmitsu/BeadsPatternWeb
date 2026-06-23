@@ -112,6 +112,8 @@ export const DEFAULT_SETTINGS = {
   showNumbers: true,
   backgroundAsWhite: true,
   mergeStrength: '標準',
+  fitMode: 'stretch', // 'stretch'(引き伸ばす) | 'crop'(切り抜き) | 'contain'(全体・余白)
+  crop: null,         // 切り抜き範囲(正規化 {x,y,w,h} 0..1)。null は自動(中央カバー)
   detection: {
     maxColors: 24,
     colorDistanceThreshold: 35,
@@ -122,6 +124,16 @@ export const DEFAULT_SETTINGS = {
     outlineEnhancement: false,
   },
 };
+
+/** 画像の合わせ方(アスペクト比の扱い) */
+export const FIT_MODES = [
+  { value: 'stretch', label: '引き伸ばす', hint: 'グリッド全体に広げる（比率は無視）' },
+  { value: 'crop', label: '切り抜く', hint: '比率を保ち、使う範囲を選ぶ' },
+  { value: 'contain', label: '全体を入れる', hint: '比率を保ち全体を収める（余白は背景の扱い＝白か透明になります）' },
+];
+
+/** 分割印刷の1区画あたりのマス数(選択肢) */
+export const PRINT_TILE_OPTIONS = [25, 30, 40, 50];
 
 /** 受け付ける画像MIME */
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];

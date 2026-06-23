@@ -53,8 +53,9 @@ export function ColorPalette(props) {
         <span class="muted palette__total">総ビーズ ${totalBeads}個</span>
       </div>
       <div class="panel__body">
-        <div class="palette__hint muted">
-          番号や色見本をクリックすると、その色だけをハイライト表示します。
+        <div class="palette__hint">
+          番号や色見本をクリックすると、その色だけを強調表示します（並べる順番の確認に便利）。
+          各行で色の変更（□か色コード）・「この色で塗る」でマスの塗り替え・「別の色とまとめる」もできます。
         </div>
         <div class="palette__list" role="list">
           ${colors.map(
@@ -176,19 +177,30 @@ function PaletteRow(props) {
       </button>
 
       <div class="palette__edit">
-        <input
-          type="text"
-          class=${'palette__hex field' + (hexValid ? '' : ' warn--error')}
-          value=${hexInput}
-          maxlength="7"
-          spellcheck="false"
-          aria-label=${`色${color.id}のHEX`}
-          onInput=${(e) => setHexInput(e.target.value)}
-          onBlur=${commitHex}
-          onKeyDown=${(e) => {
-            if (e.key === 'Enter') e.target.blur();
-          }}
-        />
+        <div class="palette__hexrow">
+          <input
+            type="color"
+            class="palette__picker"
+            value=${normalizeHex(color.hex)}
+            aria-label=${`色${color.id}の色を選ぶ`}
+            title="色を選ぶ"
+            onChange=${(e) => onEditColor && onEditColor(color.id, { hex: e.target.value.toUpperCase() })}
+          />
+          <input
+            type="text"
+            class=${'palette__hex field' + (hexValid ? '' : ' warn--error')}
+            value=${hexInput}
+            maxlength="7"
+            spellcheck="false"
+            aria-label=${`色${color.id}の色コード`}
+            title="色コード(#RRGGBB)"
+            onInput=${(e) => setHexInput(e.target.value)}
+            onBlur=${commitHex}
+            onKeyDown=${(e) => {
+              if (e.key === 'Enter') e.target.blur();
+            }}
+          />
+        </div>
         <input
           type="text"
           class="palette__name field"
@@ -220,14 +232,14 @@ function PaletteRow(props) {
         ${colors.length > 1 &&
         html`
           <label class="palette__merge">
-            <span class="muted palette__merge-label">統合先</span>
+            <span class="muted palette__merge-label">別の色とまとめる</span>
             <select
               class="palette__merge-select field"
               value=${mergeTarget}
-              aria-label=${`色${color.id}の統合先`}
+              aria-label=${`色${color.id}を別の色とまとめる`}
               onChange=${(e) => applyMerge(e.target.value)}
             >
-              <option value="">選択…</option>
+              <option value="">まとめ先を選ぶ…</option>
               ${colors
                 .filter((c) => c.id !== color.id)
                 .map(

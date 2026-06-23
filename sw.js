@@ -1,10 +1,11 @@
 // ============================================================
 //  Service Worker (PWA / オフライン対応)
 // ------------------------------------------------------------
-//  アプリシェルと vendor をキャッシュし、その他の同一オリジン GET は
-//  ランタイムキャッシュ(取得後に保存)する。これで2回目以降はオフラインでも起動可能。
+//  方針: network-first。オンライン時は常に最新を取得して表示し(取得時にキャッシュも更新)、
+//  オフライン時のみキャッシュから配信する。これにより更新が確実に届き、かつオフラインでも起動できる。
+//  ※ cache-first だと更新が反映されないため避ける。キャッシュ名を変えると旧キャッシュは破棄される。
 // ============================================================
-const CACHE = 'beads-pattern-v1';
+const CACHE = 'beads-pattern-v2';
 
 const CORE = [
   './',
@@ -37,20 +38,21 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
+  // 外部オリジンには介入しない
+  let sameOrigin = true;
+  try { sameOrigin = new URL(req.url).origin === self.location.origin; } catch (_) {}
+  if (!sameOrigin) return;
+
+  // network-first: 最新を優先。成功したらキャッシュ更新。失敗(オフライン)時はキャッシュ→なければindex.html。
   e.respondWith(
-    caches.match(req).then((hit) => {
-      if (hit) return hit;
-      return fetch(req)
-        .then((res) => {
-          try {
-            if (res && res.ok && new URL(req.url).origin === self.location.origin) {
-              const copy = res.clone();
-              caches.open(CACHE).then((c) => c.put(req, copy));
-            }
-          } catch (_) {}
-          return res;
-        })
-        .catch(() => caches.match('./index.html'));
-    })
+    fetch(req)
+      .then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html')))
   );
 });

@@ -71,6 +71,16 @@ function inHue(h, start, end) {
  * @returns {string}
  */
 export function estimateColorName(r, g, b) {
+  // 近白・近黒・無彩色は HSL の彩度が不安定(分母が0付近で過大)になるため、
+  // まず RGB の振れ幅(max-min)で無彩色を判定する。
+  const cmax = Math.max(r, g, b);
+  const cmin = Math.min(r, g, b);
+  if (cmax - cmin < 18) {
+    if (cmax < 60) return '黒';
+    if (cmax > 205) return '白';
+    return '灰色';
+  }
+
   const { h, s, l } = rgbToHsl(r, g, b);
 
   // --- 低彩度(無彩色寄り): 明度で 黒 / 灰色 / 白 ---

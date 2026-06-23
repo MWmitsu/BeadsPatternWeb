@@ -173,7 +173,7 @@ export function BeadCanvas(props) {
           >フィット</button>
         </div>
         <div class="bead-canvas__info muted">
-          ${pattern.width} × ${pattern.height} マス・計 ${totalPx.toLocaleString()} px
+          ${pattern.width} × ${pattern.height} マス（計 ${totalPx.toLocaleString()} マス）
         </div>
       </div>
 

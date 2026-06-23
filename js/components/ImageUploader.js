@@ -19,7 +19,7 @@ import { loadImageFile, fileToDataUrl } from '../utils/imageLoader.js';
  * @param {(message: string) => void} props.onError  読込失敗時のメッセージ通知
  */
 export function ImageUploader(props) {
-  const { onImage, originalUrl, sourceImageName, onError } = props;
+  const { onImage, originalUrl, sourceImageName, onError, onSample } = props;
 
   // 非表示の <input type="file"> を参照(ドロップ領域クリックで開く)
   const inputRef = useRef(null);
@@ -152,6 +152,19 @@ export function ImageUploader(props) {
           onChange=${onInputChange}
           style=${{ display: 'none' }}
         />
+
+        ${onSample &&
+        html`
+          <div class="uploader__actions">
+            <button
+              type="button"
+              class="btn btn--ghost btn--sm uploader__sample"
+              onClick=${() => onSample()}
+            >
+              サンプルで試す
+            </button>
+          </div>
+        `}
       </div>
     </div>
   `;

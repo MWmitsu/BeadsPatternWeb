@@ -465,7 +465,15 @@ input.warn--error {
    色パレット(右)
    ============================================================ */
 .palette__total { margin-left: auto; font-weight: 400; }
-.palette__hint { margin-bottom: 10px; }
+.palette__hint {
+  margin-bottom: 10px;
+  font-size: 0.8em;
+  color: var(--muted);
+  line-height: 1.5;
+  background: var(--accent-weak);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+}
 .palette__list { display: flex; flex-direction: column; gap: 8px; }
 
 .palette__row {
@@ -644,6 +652,135 @@ input.warn--error {
   font-size: 0.9em;
 }
 
+/* ============================================================
+   使い方 / アップローダ補助 / 画像の合わせ方 / 範囲選択 / 分割印刷
+   ============================================================ */
+.help {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 2px 12px;
+}
+.help__summary { cursor: pointer; font-weight: 600; font-size: 0.9em; padding: 8px 0; }
+.help__steps { margin: 2px 0 10px; padding-left: 1.2em; font-size: 0.85em; }
+.help__steps li { margin: 4px 0; }
+
+.uploader__actions { margin-top: 10px; text-align: center; }
+
+.settings__fit { flex-wrap: wrap; gap: 8px 14px; justify-content: flex-start; }
+.settings__crop-btn { margin-top: 8px; }
+.settings__fit-hint { margin: 6px 0 0; }
+
+/* 1行の補足説明 */
+.field__hint { margin: 4px 0 0; line-height: 1.4; }
+
+/* 詳しい色設定(折りたたみ) */
+.settings__advanced {
+  margin: 8px 0 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px 10px 4px;
+  background: var(--surface-2);
+}
+.settings__advanced-summary {
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--accent-strong);
+  padding: 8px 0;
+}
+.settings__advanced .field:last-child { margin-bottom: 8px; }
+
+/* パレットの色変更(カラーピッカー併設) */
+.palette__hexrow { display: flex; align-items: center; gap: 4px; }
+.palette__picker {
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.palette__hexrow .palette__hex { flex: 1; width: auto; }
+
+/* 範囲選択モーダル */
+.cropmodal {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.cropmodal__sheet {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  max-width: 640px;
+  width: 100%;
+}
+.cropmodal__head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.cropmodal__area {
+  position: relative;
+  max-width: min(560px, 92vw);
+  max-height: 58vh;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  touch-action: none;
+  cursor: move;
+  background: #000;
+  user-select: none;
+}
+.cropmodal__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+  pointer-events: none;
+}
+.cropmodal__box {
+  position: absolute;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  border: 2px solid #ffffff;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.cropmodal__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.cropmodal__zoom { display: flex; align-items: center; gap: 8px; flex: 1 1 180px; }
+.cropmodal__zoom input { flex: 1; }
+.cropmodal__btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* 印刷: 分割の操作と区画 */
+.print-controls__opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.85em;
+  color: #222;
+}
+.print-controls__count { background: rgba(255, 255, 255, 0.92); padding: 4px 10px; border-radius: 999px; }
+.print-overview__canvas { max-width: 360px; }
+.print-tile { margin: 0 0 18px; }
+.print-tile__label { font-weight: 700; font-size: 0.9em; margin-bottom: 6px; color: #111; }
+
 /* ---- 印刷指定 ---------------------------------------------- */
 @media print {
   body { background: #fff; }
@@ -665,5 +802,14 @@ input.warn--error {
     margin: 0 !important;
     padding: 0 !important;
   }
+  /* 分割印刷: 各区画と概観を1ページずつに */
+  .print-tile {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: page;
+    page-break-after: always;
+  }
+  .print-tile:last-child { break-after: auto; page-break-after: auto; }
+  .print-overview { break-after: page; page-break-after: always; }
   @page { margin: 12mm; }
 }

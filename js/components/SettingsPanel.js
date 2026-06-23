@@ -13,7 +13,7 @@
 // ============================================================
 
 import { html } from '../lib/html.js';
-import { MAX_COLOR_OPTIONS, MERGE_STRENGTH_THRESHOLD } from '../types.js';
+import { MAX_COLOR_OPTIONS, MERGE_STRENGTH_THRESHOLD, FIT_MODES } from '../types.js';
 
 /**
  * 変換設定パネル。
@@ -32,8 +32,12 @@ export function SettingsPanel(props) {
     onConvert,
     converting = false,
     canConvert = false,
+    canCrop = false,
+    onOpenCrop,
     warnings = [],
   } = props;
+
+  const fitMode = settings.fitMode || 'stretch';
 
   const detection = settings.detection;
 
@@ -173,6 +177,39 @@ export function SettingsPanel(props) {
           </div>
         </div>
 
+        <div class="field">
+          <span class="field__label">画像の合わせ方（写真の比率が違うとき）</span>
+          <div class="field__row settings__radio-row settings__fit">
+            ${FIT_MODES.map(
+              (m) => html`
+                <label key=${m.value} class="settings__radio" title=${m.hint}>
+                  <input
+                    type="radio"
+                    name="settings-fit"
+                    checked=${fitMode === m.value}
+                    onChange=${() => patch({ fitMode: m.value })}
+                  />
+                  <span>${m.label}</span>
+                </label>
+              `
+            )}
+          </div>
+          ${fitMode === 'crop' &&
+          html`
+            <button
+              type="button"
+              class="btn btn--ghost btn--sm settings__crop-btn"
+              disabled=${!canCrop}
+              onClick=${() => canCrop && onOpenCrop && onOpenCrop()}
+            >
+              範囲を調整…
+            </button>
+          `}
+          <p class="settings__fit-hint muted">
+            ${(FIT_MODES.find((m) => m.value === fitMode) || {}).hint || ''}
+          </p>
+        </div>
+
         <div class="divider"></div>
 
         <!-- ===== 色判定設定 ===== -->
@@ -180,117 +217,112 @@ export function SettingsPanel(props) {
 
         <div class="field">
           <div class="field__row">
-            <label class="field__label" for="settings-merge-strength">色統合の強さ</label>
+            <label class="field__label" for="settings-merge-strength">色のまとめ具合</label>
             <select
               id="settings-merge-strength"
               class="settings__select"
               value=${settings.mergeStrength}
               onChange=${(e) => handleMergeStrengthChange(e.target.value)}
             >
-              <option value="弱">弱</option>
+              <option value="弱">弱（色を多めに残す）</option>
               <option value="標準">標準</option>
-              <option value="強">強</option>
+              <option value="強">強（色を少なくまとめる）</option>
             </select>
           </div>
+          <p class="field__hint muted">強いほど、似た色どうしを1色にまとめます（色数が減って作りやすくなります）。</p>
         </div>
 
-        <div class="field">
-          <div class="field__row">
-            <label class="field__label" for="settings-distance">
-              色距離しきい値
-            </label>
-            <div class="settings__range-wrap">
+        <details class="settings__advanced">
+          <summary class="settings__advanced-summary">詳しい色設定（ふだんは触らなくてOK）</summary>
+
+          <div class="field">
+            <div class="field__row">
+              <label class="field__label" for="settings-distance">色をまとめる距離</label>
+              <div class="settings__range-wrap">
+                <input
+                  id="settings-distance"
+                  class="settings__range"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value=${detection.colorDistanceThreshold}
+                  onInput=${(e) =>
+                    patchDetection({
+                      colorDistanceThreshold: toNumber(e.target.value, detection.colorDistanceThreshold),
+                    })}
+                />
+                <span class="settings__range-value badge">${detection.colorDistanceThreshold}</span>
+              </div>
+            </div>
+            <p class="field__hint muted">「色のまとめ具合」を数値で細かく調整するものです（大きいほどまとめます）。</p>
+          </div>
+
+          <div class="field">
+            <label class="field__row toggle">
               <input
-                id="settings-distance"
-                class="settings__range"
-                type="range"
+                type="checkbox"
+                checked=${detection.mergeMinorColors}
+                onChange=${(e) => patchDetection({ mergeMinorColors: e.target.checked })}
+              />
+              <span class="field__label">少ししか使わない色をまとめる</span>
+            </label>
+            <p class="field__hint muted">数個しか出てこない色を近い色にまとめ、作りやすくします。</p>
+          </div>
+
+          <div class="field">
+            <div class="field__row">
+              <label class="field__label" for="settings-minor-count">何個以下をまとめるか</label>
+              <input
+                id="settings-minor-count"
+                class="settings__input"
+                type="number"
                 min="0"
-                max="100"
-                value=${detection.colorDistanceThreshold}
+                value=${detection.minorColorCountThreshold}
+                disabled=${!detection.mergeMinorColors}
                 onInput=${(e) =>
                   patchDetection({
-                    colorDistanceThreshold: toNumber(
-                      e.target.value,
-                      detection.colorDistanceThreshold
-                    ),
+                    minorColorCountThreshold: toNumber(e.target.value, detection.minorColorCountThreshold),
                   })}
               />
-              <span class="settings__range-value badge"
-                >${detection.colorDistanceThreshold}</span
-              >
             </div>
           </div>
-        </div>
 
-        <div class="field">
-          <label class="field__row toggle">
-            <input
-              type="checkbox"
-              checked=${detection.mergeMinorColors}
-              onChange=${(e) =>
-                patchDetection({ mergeMinorColors: e.target.checked })}
-            />
-            <span class="field__label">少数色を近似色へ統合</span>
-          </label>
-        </div>
-
-        <div class="field">
-          <div class="field__row">
-            <label class="field__label" for="settings-minor-count">
-              統合する少数色のマス数しきい値
+          <div class="field">
+            <label class="field__row toggle">
+              <input
+                type="checkbox"
+                checked=${detection.dithering}
+                onChange=${(e) => patchDetection({ dithering: e.target.checked })}
+              />
+              <span class="field__label">ディザリング</span>
             </label>
-            <input
-              id="settings-minor-count"
-              class="settings__input"
-              type="number"
-              min="0"
-              value=${detection.minorColorCountThreshold}
-              disabled=${!detection.mergeMinorColors}
-              onInput=${(e) =>
-                patchDetection({
-                  minorColorCountThreshold: toNumber(
-                    e.target.value,
-                    detection.minorColorCountThreshold
-                  ),
-                })}
-            />
+            <p class="field__hint muted">色の境目を細かい点で混ぜ、なめらかに見せます。</p>
           </div>
-        </div>
 
-        <div class="field">
-          <label class="field__row toggle">
-            <input
-              type="checkbox"
-              checked=${detection.dithering}
-              onChange=${(e) => patchDetection({ dithering: e.target.checked })}
-            />
-            <span class="field__label">ディザリング</span>
-          </label>
-        </div>
+          <div class="field">
+            <label class="field__row toggle">
+              <input
+                type="checkbox"
+                checked=${detection.contrastCorrection}
+                onChange=${(e) => patchDetection({ contrastCorrection: e.target.checked })}
+              />
+              <span class="field__label">コントラスト補正</span>
+            </label>
+            <p class="field__hint muted">明暗の差をはっきりさせます。</p>
+          </div>
 
-        <div class="field">
-          <label class="field__row toggle">
-            <input
-              type="checkbox"
-              checked=${detection.contrastCorrection}
-              onChange=${(e) =>
-                patchDetection({ contrastCorrection: e.target.checked })}
-            />
-            <span class="field__label">コントラスト補正</span>
-          </label>
-        </div>
-
-        <div class="field">
-          <label class="field__row toggle">
-            <input
-              type="checkbox"
-              checked=${detection.outlineEnhancement}
-              onChange=${(e) =>
-                patchDetection({ outlineEnhancement: e.target.checked })}
-            />
-            <span class="field__label">輪郭強調</span>
-          </label>
-        </div>
+          <div class="field">
+            <label class="field__row toggle">
+              <input
+                type="checkbox"
+                checked=${detection.outlineEnhancement}
+                onChange=${(e) => patchDetection({ outlineEnhancement: e.target.checked })}
+              />
+              <span class="field__label">輪郭強調</span>
+            </label>
+            <p class="field__hint muted">絵の輪郭をくっきりさせます。</p>
+          </div>
+        </details>
 
         <p class="settings__note muted">
           色数を増やすほど元画像に近づきますが、制作は難しくなります。
