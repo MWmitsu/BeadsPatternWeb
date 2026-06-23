@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="アイロンビーズ図案メーカー">
+  <rect width="512" height="512" rx="96" fill="#2b8a78"/>
+  <g>
+    <!-- 4x4 のビーズ(中央に穴のあるドーナツ型) -->
+    <!-- row helper colors -->
+    <g fill="none" stroke-width="0">
+      <!-- generated grid -->
+    </g>
+    <!-- ビーズ群 -->
+    <g>
+      <!-- 各ビーズ: 外円 + 白い中心穴 -->
+      <!-- 4列4行, 余白88, セル84, ビーズ半径34, 穴半径12 -->
+      <!-- r0 -->
+      <circle cx="130" cy="130" r="34" fill="#ff6b6b"/><circle cx="130" cy="130" r="12" fill="#2b8a78"/>
+      <circle cx="214" cy="130" r="34" fill="#ffd93d"/><circle cx="214" cy="130" r="12" fill="#2b8a78"/>
+      <circle cx="298" cy="130" r="34" fill="#4d96ff"/><circle cx="298" cy="130" r="12" fill="#2b8a78"/>
+      <circle cx="382" cy="130" r="34" fill="#f6f7f9"/><circle cx="382" cy="130" r="12" fill="#2b8a78"/>
+      <!-- r1 -->
+      <circle cx="130" cy="214" r="34" fill="#ffd93d"/><circle cx="130" cy="214" r="12" fill="#2b8a78"/>
+      <circle cx="214" cy="214" r="34" fill="#6bcb77"/><circle cx="214" cy="214" r="12" fill="#2b8a78"/>
+      <circle cx="298" cy="214" r="34" fill="#ff6b6b"/><circle cx="298" cy="214" r="12" fill="#2b8a78"/>
+      <circle cx="382" cy="214" r="34" fill="#4d96ff"/><circle cx="382" cy="214" r="12" fill="#2b8a78"/>
+      <!-- r2 -->
+      <circle cx="130" cy="298" r="34" fill="#4d96ff"/><circle cx="130" cy="298" r="12" fill="#2b8a78"/>
+      <circle cx="214" cy="298" r="34" fill="#ff6b6b"/><circle cx="214" cy="298" r="12" fill="#2b8a78"/>
+      <circle cx="298" cy="298" r="34" fill="#ffd93d"/><circle cx="298" cy="298" r="12" fill="#2b8a78"/>
+      <circle cx="382" cy="298" r="34" fill="#6bcb77"/><circle cx="382" cy="298" r="12" fill="#2b8a78"/>
+      <!-- r3 -->
+      <circle cx="130" cy="382" r="34" fill="#f6f7f9"/><circle cx="130" cy="382" r="12" fill="#2b8a78"/>
+      <circle cx="214" cy="382" r="34" fill="#4d96ff"/><circle cx="214" cy="382" r="12" fill="#2b8a78"/>
+      <circle cx="298" cy="382" r="34" fill="#6bcb77"/><circle cx="298" cy="382" r="12" fill="#2b8a78"/>
+      <circle cx="382" cy="382" r="34" fill="#ffd93d"/><circle cx="382" cy="382" r="12" fill="#2b8a78"/>
+    </g>
+  </g>
+</svg>
