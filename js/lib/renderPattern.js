@@ -34,6 +34,7 @@ export function drawPattern(ctx, pattern, opts = {}) {
   const gridColor = opts.gridColor ?? 'rgba(0,0,0,0.16)';
   const majorGridColor = opts.majorGridColor ?? 'rgba(0,0,0,0.42)';
   const dim = opts.dimNonHighlight ?? 0.1;
+  const doneSet = opts.doneSet || null; // 作業済みセルの index(y*width+x) の Set
 
   const colorMap = new Map(colors.map((c) => [c.id, c]));
   const W = width * cellSize;
@@ -65,6 +66,25 @@ export function drawPattern(ctx, pattern, opts = {}) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(String(cell.colorId), px + cellSize / 2, py + cellSize / 2 + 0.5);
+    }
+
+    // --- 作業済みチェック(白く覆ってチェックマーク) ---
+    if (doneSet && doneSet.has(cell.y * width + cell.x)) {
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(px, py, cellSize, cellSize);
+      ctx.globalAlpha = 1;
+      if (cellSize >= 7) {
+        ctx.strokeStyle = '#1d7a47';
+        ctx.lineWidth = Math.max(1, cellSize * 0.12);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(px + cellSize * 0.24, py + cellSize * 0.54);
+        ctx.lineTo(px + cellSize * 0.43, py + cellSize * 0.73);
+        ctx.lineTo(px + cellSize * 0.76, py + cellSize * 0.29);
+        ctx.stroke();
+      }
     }
   }
 

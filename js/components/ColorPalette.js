@@ -10,6 +10,7 @@
 import { html, useState, useEffect } from '../lib/html.js';
 import { COLOR_NAMES } from '../types.js';
 import { isValidHex, normalizeHex, textColorFor } from '../utils/colorDistance.js';
+import { matchToPalette } from '../utils/beadMatch.js';
 
 /**
  * @param {Object} props
@@ -26,6 +27,8 @@ export function ColorPalette(props) {
   const {
     colors = [],
     totalBeads = 0,
+    beadPaletteColors = null,
+    bufferPercent = 0,
     highlightColorId = null,
     onHighlight,
     editColorId = null,
@@ -66,6 +69,8 @@ export function ColorPalette(props) {
                 isHighlighted=${highlightColorId === color.id}
                 isEditing=${editColorId === color.id}
                 colors=${colors}
+                beadPaletteColors=${beadPaletteColors}
+                bufferPercent=${bufferPercent}
                 onHighlight=${onHighlight}
                 onSelectEditColor=${onSelectEditColor}
                 onEditColor=${onEditColor}
@@ -88,11 +93,17 @@ function PaletteRow(props) {
     isHighlighted,
     isEditing,
     colors,
+    beadPaletteColors = null,
+    bufferPercent = 0,
     onHighlight,
     onSelectEditColor,
     onEditColor,
     onMergeColors,
   } = props;
+
+  // 近い市販ビーズ色(目安)と必要数(個数 + 予備%)
+  const bead = beadPaletteColors ? matchToPalette(color.hex, beadPaletteColors) : null;
+  const need = bufferPercent > 0 ? Math.ceil(color.count * (1 + bufferPercent / 100)) : color.count;
 
   // 入力途中の値はローカルで保持(無効なHEXでも一時的に保持できるように)
   const [hexInput, setHexInput] = useState(color.hex);
@@ -217,7 +228,20 @@ function PaletteRow(props) {
       <div class="palette__stats">
         <span class="palette__count">${color.count}個</span>
         <span class="palette__ratio muted">${formatRatio(color.ratio)}%</span>
+        ${bufferPercent > 0
+          ? html`<span class="palette__need muted" title="個数＋予備${bufferPercent}%">必要 ${need}個</span>`
+          : null}
       </div>
+
+      ${bead &&
+      html`
+        <div class="palette__bead" title="近い市販ビーズ色（目安）">
+          <span class="muted">近い市販色</span>
+          <span class="palette__bead-swatch swatch" style=${`background:${bead.hex}`}></span>
+          <span class="palette__bead-code">${bead.code}</span>
+          <span class="palette__bead-name">${bead.name}</span>
+        </div>
+      `}
 
       <div class="palette__actions">
         <button

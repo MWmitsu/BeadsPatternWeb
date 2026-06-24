@@ -75,10 +75,14 @@ export function BeadCanvas(props) {
     onCellSizeChange,
     onCellClick,
     editingEnabled = false,
+    checkMode = false,
+    doneSet = null,
+    onToggleDone,
   } = props;
 
   const canvasRef = useRef(null);
   const stageRef = useRef(null);
+  const interactive = editingEnabled || checkMode;
 
   // pattern / オプション / cellSize の変化時に再描画
   useEffect(() => {
@@ -92,8 +96,8 @@ export function BeadCanvas(props) {
 
     const ctx = canvas.getContext('2d');
     const opts = buildDrawOpts(viewMode, { showGrid, showNumbers, highlightColorId });
-    drawPattern(ctx, pattern, { ...opts, cellSize: cs });
-  }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, cellSize]);
+    drawPattern(ctx, pattern, { ...opts, cellSize: cs, doneSet });
+  }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, cellSize, doneSet]);
 
   // ---- ズーム操作 ----
   const handleZoomIn = () => {
@@ -115,7 +119,7 @@ export function BeadCanvas(props) {
 
   // ---- クリック → セル座標へ変換 ----
   const handleCanvasClick = (e) => {
-    if (!pattern || !onCellClick) return;
+    if (!pattern) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -127,7 +131,11 @@ export function BeadCanvas(props) {
     const x = Math.floor(offsetX / cellSize);
     const y = Math.floor(offsetY / cellSize);
     if (x < 0 || y < 0 || x >= pattern.width || y >= pattern.height) return;
-    onCellClick(x, y);
+    if (checkMode) {
+      if (onToggleDone) onToggleDone(x, y);
+    } else if (onCellClick) {
+      onCellClick(x, y);
+    }
   };
 
   // ---- pattern 未読み込み: プレースホルダ ----
@@ -145,7 +153,7 @@ export function BeadCanvas(props) {
   const isCompare = viewMode === 'compare';
   const canvasClass =
     'bead-canvas__canvas' +
-    (editingEnabled ? ' bead-canvas__canvas--editing' : '');
+    (interactive ? ' bead-canvas__canvas--editing' : '');
 
   return html`
     <div class="bead-canvas">
@@ -185,7 +193,7 @@ export function BeadCanvas(props) {
                 <canvas
                   ref=${canvasRef}
                   class=${canvasClass}
-                  onClick=${editingEnabled ? handleCanvasClick : null}
+                  onClick=${interactive ? handleCanvasClick : null}
                 ></canvas>
               </div>
               <div class="bead-canvas__compare-pane">
@@ -207,7 +215,7 @@ export function BeadCanvas(props) {
               <canvas
                 ref=${canvasRef}
                 class=${canvasClass}
-                onClick=${editingEnabled ? handleCanvasClick : null}
+                onClick=${interactive ? handleCanvasClick : null}
               ></canvas>
             </div>
           `}

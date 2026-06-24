@@ -40,6 +40,8 @@ export function ExportPanel(props) {
     onOpenPrint,
     onImportProject,
     disabled,
+    bufferPercent = 0,
+    beadPaletteColors = null,
   } = props;
 
   // 隠しファイル入力(JSON読込用)への参照
@@ -61,7 +63,7 @@ export function ExportPanel(props) {
   function handleExportCsv() {
     if (!colors || colors.length === 0) return;
     const base = sanitizeName(pattern && pattern.title, 'beads');
-    exportColorsCsv(colors, base + '_色一覧.csv');
+    exportColorsCsv(colors, base + '_色一覧.csv', { bufferPercent, beadPaletteColors });
   }
 
   // プロジェクト全体をJSONファイルとして保存

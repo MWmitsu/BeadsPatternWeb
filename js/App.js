@@ -6,7 +6,7 @@
 // 子コンポーネントは表示と入力に専念し、ロジックはここに集約する。
 // ============================================================
 
-import { html, useState, useMemo, useRef } from './lib/html.js';
+import { html, useState, useMemo, useRef, useEffect } from './lib/html.js';
 import {
   DEFAULT_SETTINGS,
   WARN,
@@ -34,6 +34,15 @@ import { ExportPanel } from './components/ExportPanel.js';
 import { PrintView } from './components/PrintView.js';
 import { ProjectList } from './components/ProjectList.js';
 import { CropModal } from './components/CropModal.js';
+import { ToolsPanel } from './components/ToolsPanel.js';
+import { BEAD_PALETTES } from './data/beadPalettes.js';
+import { snapPatternToPalette } from './utils/beadMatch.js';
+import {
+  encodePatternToData,
+  decodeDataToPattern,
+  SHARE_HASH_KEY,
+  estimateHashLength,
+} from './utils/shareCodec.js';
 
 /** 中央の表示モードタブ定義 */
 const VIEW_MODES = [
@@ -145,6 +154,8 @@ export function App() {
   const [cellSize, setCellSize] = useState(12);
   const [highlightColorId, setHighlightColorId] = useState(null);
   const [editColorId, setEditColorId] = useState(null);
+  const [checkMode, setCheckMode] = useState(false); // 作業チェックモード
+  const [doneSet, setDoneSet] = useState(() => new Set()); // 作業済みセルの index(y*width+x)
 
   // ---- プロジェクト ----
   const [title, setTitle] = useState('無題の図案');
@@ -200,6 +211,8 @@ export function App() {
         setCreatedAt(new Date().toISOString());
         setHighlightColorId(null);
         setEditColorId(null);
+        setCheckMode(false);
+        setDoneSet(new Set());
         setViewMode('finished');
         // 画面幅に収まるセルサイズへ自動フィット(スマホでは小さめ)
         setCellSize(autoFitCellSize(result.width));
@@ -340,6 +353,168 @@ export function App() {
     else if (viewMode === 'highlight') setViewMode('finished');
   };
 
+  // ---- 作業チェック ----
+  const handleToggleDone = (x, y) => {
+    if (!pattern) return;
+    const idx = y * pattern.width + x;
+    const next = new Set(doneSet);
+    if (next.has(idx)) next.delete(idx);
+    else next.add(idx);
+    setDoneSet(next);
+  };
+  const handleMarkHighlightDone = (markDone) => {
+    if (!pattern || highlightColorId == null) return;
+    const next = new Set(doneSet);
+    for (const cell of pattern.cells) {
+      if (cell.colorId === highlightColorId) {
+        const idx = cell.y * pattern.width + cell.x;
+        if (markDone) next.add(idx);
+        else next.delete(idx);
+      }
+    }
+    setDoneSet(next);
+  };
+  const handleResetDone = () => setDoneSet(new Set());
+
+  // ---- 検出色を市販ビーズ色へスナップ ----
+  const handleSnapToBeads = () => {
+    if (!pattern) return;
+    const pal = BEAD_PALETTES.find((p) => p.id === settings.beadPaletteId);
+    if (!pal) {
+      setError('「ビーズ色」で 標準/パーラー/ハマ のいずれかを選んでください。');
+      return;
+    }
+    const res = snapPatternToPalette(pattern.cells, pattern.colors, pal.colors);
+    setPattern({ ...pattern, cells: res.cells, colors: res.colors, totalBeads: res.totalBeads });
+    setHighlightColorId(null);
+    setEditColorId(null);
+    setDoneSet(new Set());
+    flash(`市販色（${pal.name}）に合わせました。`);
+  };
+
+  // ---- 共有: 画像(Web Share / フォールバックでダウンロード) ----
+  const handleShareImage = () => {
+    if (!pattern) {
+      setError('共有する図案がありません。');
+      return;
+    }
+    const canvas = renderPatternToCanvas(pattern, { cellSize: 12, showGrid: false, showNumbers: false });
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const fname = (title || 'beads') + '.png';
+      const file = new File([blob], fname, { type: 'image/png' });
+      const downloadFallback = () => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fname;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+        flash('画像を保存しました。');
+      };
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator
+          .share({ files: [file], title: title || 'アイロンビーズ図案' })
+          .catch((err) => {
+            // ユーザーが共有をキャンセル(AbortError)した場合は何もしない。
+            // それ以外の失敗時はダウンロードにフォールバック。
+            if (!err || err.name !== 'AbortError') downloadFallback();
+          });
+        return;
+      }
+      downloadFallback();
+    }, 'image/png');
+  };
+
+  // ---- 共有: リンク(図案をURLに埋め込む。サーバ不要) ----
+  const handleShareLink = () => {
+    if (!pattern) {
+      setError('共有する図案がありません。');
+      return;
+    }
+    const grid = cellsToGrid(pattern.cells, pattern.width, pattern.height);
+    const data = encodePatternToData({
+      width: pattern.width,
+      height: pattern.height,
+      title,
+      colors: pattern.colors.map((c) => c.hex),
+      grid,
+    });
+    if (estimateHashLength(data) > 14000) {
+      setError('図案が大きいため共有リンクが長くなりすぎます。「画像を共有」をご利用ください。');
+      return;
+    }
+    const url = location.origin + location.pathname + '#' + SHARE_HASH_KEY + '=' + data;
+    const ok = () => flash('共有リンクをコピーしました。メールやSNSに貼り付けて送れます。');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(ok).catch(() => window.prompt('このリンクをコピーしてください', url));
+    } else {
+      window.prompt('このリンクをコピーしてください', url);
+    }
+  };
+
+  // ---- 共有データ(URLハッシュ)を図案へ復元 ----
+  const applySharedData = (data) => {
+    const { width, height, title: t, colors: hexes, grid } = data;
+    if (
+      !Array.isArray(hexes) ||
+      !Array.isArray(grid) ||
+      !Number.isInteger(width) ||
+      !Number.isInteger(height) ||
+      width < 1 ||
+      height < 1 ||
+      width > 400 ||
+      height > 400 ||
+      grid.length !== width * height
+    ) {
+      setError('共有データを読み込めませんでした。');
+      return;
+    }
+    const colors = hexes.map((hex, i) => ({
+      id: i + 1,
+      hex,
+      rgb: hexToRgb(hex),
+      name: estimateColorNameFromHex(hex),
+      count: 0,
+      ratio: 0,
+    }));
+    const cells = gridToCells(grid, width, height, colors);
+    const { colors: rc, totalBeads } = recomputeCounts(cells, colors);
+    setPattern({ width, height, colors: rc, cells, totalBeads, backgroundCount: width * height - totalBeads });
+    setTitle(t || '無題の図案');
+    setImage(null);
+    setOriginalUrl(null);
+    setSourceImageName(null);
+    setCurrentId(null);
+    setCreatedAt(new Date().toISOString());
+    setHighlightColorId(null);
+    setEditColorId(null);
+    setCheckMode(false);
+    setDoneSet(new Set());
+    setViewMode('finished');
+    setCellSize(autoFitCellSize(width));
+  };
+
+  // 起動時: URLハッシュに共有図案があれば読み込む
+  useEffect(() => {
+    const h = window.location.hash || '';
+    const key = '#' + SHARE_HASH_KEY + '=';
+    if (h.startsWith(key)) {
+      const data = decodeDataToPattern(h.slice(key.length));
+      if (data) {
+        applySharedData(data);
+        flash('共有された図案を読み込みました。');
+      }
+      // 再読み込みで再適用されないようハッシュを消す
+      try {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch (_) {}
+    }
+    // eslint-disable-next-line
+  }, []);
+
   // ---- プロジェクト構築 ----
   const buildProjectBase = (withThumbnail) => {
     const id = currentId || draftIdRef.current;
@@ -370,6 +545,7 @@ export function App() {
       grid,
       settings,
       thumbnail,
+      done: Array.from(doneSet),
       createdAt: createdAt || now,
       updatedAt: now,
     };
@@ -379,7 +555,7 @@ export function App() {
   const project = useMemo(
     () => (pattern ? buildProjectBase(false) : null),
     // eslint-disable-next-line
-    [pattern, settings, title, currentId, sourceImageName, createdAt]
+    [pattern, settings, title, currentId, sourceImageName, createdAt, doneSet]
   );
 
   // ---- localStorage 保存 ----
@@ -438,6 +614,8 @@ export function App() {
       setImage(null); // 再変換用の元画像は持ち越さない
       setHighlightColorId(null);
       setEditColorId(null);
+      setCheckMode(false);
+      setDoneSet(new Set(Array.isArray(obj.done) ? obj.done : []));
       setViewMode('finished');
       setCellSize(autoFitCellSize(obj.width));
       setError(null);
@@ -500,6 +678,9 @@ export function App() {
   const colors = pattern ? pattern.colors : [];
   const totalBeads = pattern ? pattern.totalBeads : 0;
   const exportPattern = pattern ? { ...pattern, title: title || '無題の図案' } : null;
+  const beadPalette = BEAD_PALETTES.find((p) => p.id === settings.beadPaletteId) || null;
+  const beadPaletteColors = beadPalette ? beadPalette.colors : null;
+  const doneCount = doneSet.size;
 
   return html`
     <div class="app">
@@ -538,6 +719,7 @@ export function App() {
               <li>横・縦のマス数と最大色数を決めて<b>「画像から変換」</b>。</li>
               <li>比率が違う写真は<b>「画像の合わせ方」</b>で引き伸ばす／切り抜くを選べます。</li>
               <li>右の色一覧で番号を確認。番号クリックでその色だけ強調。印刷・PNG/CSV保存も可能。</li>
+              <li><b>「制作・共有ツール」</b>で 市販ビーズ色の目安・必要数・作業チェック・共有 が使えます。</li>
             </ol>
           </details>
           <${ImageUploader}
@@ -565,6 +747,8 @@ export function App() {
             onOpenPrint=${handleOpenPrint}
             onImportProject=${applyLoaded}
             disabled=${!pattern}
+            bufferPercent=${settings.bufferPercent}
+            beadPaletteColors=${beadPaletteColors}
           />
           <${ProjectList}
             projects=${projects}
@@ -601,6 +785,14 @@ export function App() {
             </div>
           `}
 
+          ${checkMode &&
+          html`
+            <div class="edit-hint edit-hint--check">
+              <span>✓ 作業モード: マスをタップで「置いた／まだ」を切替（${doneCount} / ${totalBeads}）。</span>
+              <button class="btn btn--sm btn--ghost" type="button" onClick=${() => setCheckMode(false)}>やめる</button>
+            </div>
+          `}
+
           <${BeadCanvas}
             pattern=${pattern}
             viewMode=${viewMode}
@@ -612,14 +804,37 @@ export function App() {
             onCellSizeChange=${setCellSize}
             onCellClick=${handleCellClick}
             editingEnabled=${editColorId != null}
+            checkMode=${checkMode}
+            doneSet=${doneSet}
+            onToggleDone=${handleToggleDone}
           />
         </div>
 
         <!-- 右カラム -->
         <div class="app__col app__col--right">
+          <${ToolsPanel}
+            hasPattern=${!!pattern}
+            beadPalettes=${BEAD_PALETTES}
+            beadPaletteId=${settings.beadPaletteId}
+            onBeadPaletteChange=${(id) => setSettings({ ...settings, beadPaletteId: id })}
+            onSnapToBeads=${handleSnapToBeads}
+            bufferPercent=${settings.bufferPercent}
+            onBufferChange=${(v) => setSettings({ ...settings, bufferPercent: v })}
+            checkMode=${checkMode}
+            onToggleCheckMode=${() => setCheckMode((v) => !v)}
+            doneCount=${doneCount}
+            totalBeads=${totalBeads}
+            highlightColorId=${highlightColorId}
+            onMarkHighlightDone=${handleMarkHighlightDone}
+            onResetDone=${handleResetDone}
+            onShareImage=${handleShareImage}
+            onShareLink=${handleShareLink}
+          />
           <${ColorPalette}
             colors=${colors}
             totalBeads=${totalBeads}
+            beadPaletteColors=${beadPaletteColors}
+            bufferPercent=${settings.bufferPercent}
             highlightColorId=${highlightColorId}
             onHighlight=${handleHighlight}
             editColorId=${editColorId}
@@ -639,6 +854,8 @@ export function App() {
           totalBeads=${totalBeads}
           createdAt=${createdAt}
           onClose=${() => setPrinting(false)}
+          bufferPercent=${settings.bufferPercent}
+          beadPaletteColors=${beadPaletteColors}
         />
       `}
 

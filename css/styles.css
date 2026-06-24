@@ -705,6 +705,38 @@ input.warn--error {
 }
 .palette__hexrow .palette__hex { flex: 1; width: auto; }
 
+/* 制作・共有ツール(ToolsPanel) */
+.tools__block { margin-bottom: 4px; }
+.tools__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
+.tools__select { flex: 1; min-width: 130px; }
+.tools__bufrow { display: inline-flex; align-items: center; gap: 4px; }
+.tools__buf { width: 72px; }
+.tools__progress { display: flex; align-items: center; gap: 8px; margin: 8px 0 6px; }
+.tools__bar { flex: 1; height: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.tools__bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.2s; }
+.tools__progress-num { white-space: nowrap; font-size: 0.82em; }
+.tools__check-actions { justify-content: flex-start; }
+.tools__share { justify-content: flex-start; }
+.tools__share .btn { flex: 1 1 auto; }
+
+/* 色一覧: 必要数 / 近い市販色 */
+.palette__need { font-weight: 600; color: var(--accent-strong); font-size: 0.8em; }
+.palette__bead {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78em;
+  margin-top: 2px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--border);
+}
+.palette__bead-swatch { width: 16px; height: 16px; flex: 0 0 auto; }
+.palette__bead-code { font-weight: 700; }
+
+/* 作業モードのヒント(緑系) */
+.edit-hint--check { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok-text); }
+
 /* 範囲選択モーダル */
 .cropmodal {
   position: fixed;

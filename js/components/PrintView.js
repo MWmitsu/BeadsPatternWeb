@@ -16,6 +16,7 @@ import {
   renderTileOverviewCanvas,
 } from '../lib/renderPattern.js';
 import { textColorFor } from '../utils/colorDistance.js';
+import { matchToPalette } from '../utils/beadMatch.js';
 import { PRINT_TILE_OPTIONS } from '../types.js';
 
 /**
@@ -28,7 +29,16 @@ import { PRINT_TILE_OPTIONS } from '../types.js';
  * @param {() => void} props.onClose
  */
 export function PrintView(props) {
-  const { pattern, colors, title, totalBeads, createdAt, onClose } = props;
+  const {
+    pattern,
+    colors,
+    title,
+    totalBeads,
+    createdAt,
+    onClose,
+    bufferPercent = 0,
+    beadPaletteColors = null,
+  } = props;
 
   // 大きい図案は既定で分割印刷ON
   const [split, setSplit] = useState(() =>
@@ -169,11 +179,17 @@ export function PrintView(props) {
             <h2 class="print-section__title">色番号一覧</h2>
             <table class="print-colorlist">
               <thead>
-                <tr><th>番号</th><th>見本</th><th>HEX</th><th>色名</th><th>個数</th><th>割合</th></tr>
+                <tr>
+                  <th>番号</th><th>見本</th><th>HEX</th><th>色名</th><th>個数</th><th>割合</th>
+                  <th>必要数</th>
+                  ${beadPaletteColors ? html`<th>近い市販色</th>` : null}
+                </tr>
               </thead>
               <tbody>
-                ${sortedColors.map(
-                  (c) => html`
+                ${sortedColors.map((c) => {
+                  const need = bufferPercent > 0 ? Math.ceil(c.count * (1 + bufferPercent / 100)) : c.count;
+                  const bead = beadPaletteColors ? matchToPalette(c.hex, beadPaletteColors) : null;
+                  return html`
                     <tr key=${c.id}>
                       <td class="print-colorlist__num">${c.id}</td>
                       <td>
@@ -186,9 +202,13 @@ export function PrintView(props) {
                       <td>${c.name || ''}</td>
                       <td class="print-colorlist__count">${formatNumber(c.count)}</td>
                       <td class="print-colorlist__ratio">${formatRatio(c.ratio)}%</td>
+                      <td class="print-colorlist__count">${formatNumber(need)}</td>
+                      ${beadPaletteColors
+                        ? html`<td>${bead ? `${bead.code} ${bead.name}` : ''}</td>`
+                        : null}
                     </tr>
-                  `
-                )}
+                  `;
+                })}
               </tbody>
             </table>
           </section>

@@ -114,6 +114,8 @@ export const DEFAULT_SETTINGS = {
   mergeStrength: '標準',
   fitMode: 'stretch', // 'stretch'(引き伸ばす) | 'crop'(切り抜き) | 'contain'(全体・余白)
   crop: null,         // 切り抜き範囲(正規化 {x,y,w,h} 0..1)。null は自動(中央カバー)
+  beadPaletteId: 'standard48', // 近い市販ビーズ色のマッピング用パレット('none'で無効)
+  bufferPercent: 10,  // 必要数の予備%(購入見積り用)
   detection: {
     maxColors: 24,
     colorDistanceThreshold: 35,
