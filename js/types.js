@@ -116,6 +116,7 @@ export const DEFAULT_SETTINGS = {
   crop: null,         // 切り抜き範囲(正規化 {x,y,w,h} 0..1)。null は自動(中央カバー)
   beadPaletteId: 'standard48', // 近い市販ビーズ色のマッピング用パレット('none'で無効)
   bufferPercent: 10,  // 必要数の予備%(購入見積り用)
+  themeColor: '#2b8a78', // アプリのテーマ(アクセント)カラー
   detection: {
     maxColors: 24,
     colorDistanceThreshold: 35,
@@ -136,6 +137,16 @@ export const FIT_MODES = [
 
 /** 分割印刷の1区画あたりのマス数(選択肢) */
 export const PRINT_TILE_OPTIONS = [25, 30, 40, 50];
+
+/** テーマ(アクセント)カラーのプリセット */
+export const THEME_COLORS = [
+  { name: 'ティール', accent: '#2b8a78' },
+  { name: 'ピンク', accent: '#e84a8a' },
+  { name: 'オレンジ', accent: '#f08a24' },
+  { name: 'グリーン', accent: '#38b06a' },
+  { name: 'ブルー', accent: '#3d7ef0' },
+  { name: 'パープル', accent: '#8e57d9' },
+];
 
 /** 受け付ける画像MIME */
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];

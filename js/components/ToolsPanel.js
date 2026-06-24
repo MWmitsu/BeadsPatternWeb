@@ -23,6 +23,10 @@ export function ToolsPanel(props) {
     beadPaletteId = 'none',
     onBeadPaletteChange,
     onSnapToBeads,
+    sizeMm = 0,
+    patternWidth = 0,
+    patternHeight = 0,
+    onOpenBeadList,
     bufferPercent = 10,
     onBufferChange,
     checkMode = false,
@@ -69,6 +73,19 @@ export function ToolsPanel(props) {
             : html`<p class="field__hint muted">
                 色一覧に「近い市販色」と番号を表示します。「市販色に合わせる」で図案全体をその色に置き換えます。
               </p>`}
+          ${sizeMm > 0 && patternWidth > 0
+            ? html`<p class="field__hint muted">
+                完成サイズの目安: 約 ${((patternWidth * sizeMm) / 10).toFixed(1)} × ${((patternHeight * sizeMm) / 10).toFixed(1)} cm（${sizeMm}mmビーズ）
+              </p>`
+            : null}
+          <div class="tools__row" style=${{ marginTop: '6px' }}>
+            <button
+              type="button"
+              class="btn btn--sm"
+              disabled=${disabled}
+              onClick=${() => onOpenBeadList && onOpenBeadList()}
+            >ビーズ一覧（買い物リスト）を見る</button>
+          </div>
         </div>
 
         <div class="divider"></div>

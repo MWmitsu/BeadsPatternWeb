@@ -12,7 +12,7 @@ import {
   WARN,
   BACKGROUND_COLOR_ID,
 } from './types.js';
-import { hexToRgb } from './utils/colorDistance.js';
+import { hexToRgb, rgbToHex } from './utils/colorDistance.js';
 import { estimateColorNameFromHex } from './utils/colorName.js';
 import { pixelateToImageData } from './utils/pixelateImage.js';
 import { detectBeadPattern, recountColors } from './utils/colorDetection.js';
@@ -35,6 +35,7 @@ import { PrintView } from './components/PrintView.js';
 import { ProjectList } from './components/ProjectList.js';
 import { CropModal } from './components/CropModal.js';
 import { ToolsPanel } from './components/ToolsPanel.js';
+import { BeadListModal } from './components/BeadListModal.js';
 import { BEAD_PALETTES } from './data/beadPalettes.js';
 import { snapPatternToPalette } from './utils/beadMatch.js';
 import {
@@ -172,6 +173,7 @@ export function App() {
   const [converting, setConverting] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
+  const [beadListOpen, setBeadListOpen] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const noticeTimer = useRef(null);
@@ -678,6 +680,17 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   });
 
+  // テーマ(アクセント)カラーを CSS 変数へ反映
+  useEffect(() => {
+    const hex = settings.themeColor || '#2b8a78';
+    const { r, g, b } = hexToRgb(hex);
+    const lighten = (t) => rgbToHex(r + (255 - r) * t, g + (255 - g) * t, b + (255 - b) * t);
+    const root = document.documentElement.style;
+    root.setProperty('--accent', hex);
+    root.setProperty('--accent-strong', rgbToHex(r * 0.82, g * 0.82, b * 0.82));
+    root.setProperty('--accent-weak', lighten(0.86));
+  }, [settings.themeColor]);
+
   // ---- プロジェクト構築 ----
   const buildProjectBase = (withThumbnail) => {
     const id = currentId || draftIdRef.current;
@@ -901,6 +914,8 @@ export function App() {
             canConvert=${!!image}
             canCrop=${!!image}
             onOpenCrop=${openCrop}
+            themeColor=${settings.themeColor}
+            onThemeChange=${(hex) => setSettings({ ...settings, themeColor: hex })}
             warnings=${warnings}
           />
           <${ExportPanel}
@@ -998,6 +1013,14 @@ export function App() {
             beadPaletteId=${settings.beadPaletteId}
             onBeadPaletteChange=${(id) => setSettings({ ...settings, beadPaletteId: id })}
             onSnapToBeads=${handleSnapToBeads}
+            paletteName=${beadPalette ? beadPalette.name : ''}
+            sizeMm=${beadPalette ? beadPalette.sizeMm : 0}
+            patternWidth=${pattern ? pattern.width : 0}
+            patternHeight=${pattern ? pattern.height : 0}
+            onOpenBeadList=${() => {
+              if (pattern) setBeadListOpen(true);
+              else setError('先に画像を変換してください。');
+            }}
             bufferPercent=${settings.bufferPercent}
             onBufferChange=${(v) => setSettings({ ...settings, bufferPercent: v })}
             checkMode=${checkMode}
@@ -1050,6 +1073,21 @@ export function App() {
           initialCrop=${settings.crop}
           onApply=${applyCropFromModal}
           onCancel=${() => setCropOpen(false)}
+        />
+      `}
+
+      ${beadListOpen &&
+      html`
+        <${BeadListModal}
+          colors=${colors}
+          totalBeads=${totalBeads}
+          bufferPercent=${settings.bufferPercent}
+          beadPaletteColors=${beadPaletteColors}
+          paletteName=${beadPalette ? beadPalette.name : ''}
+          sizeMm=${beadPalette ? beadPalette.sizeMm : 0}
+          width=${pattern ? pattern.width : 0}
+          height=${pattern ? pattern.height : 0}
+          onClose=${() => setBeadListOpen(false)}
         />
       `}
     </div>

@@ -13,7 +13,7 @@
 // ============================================================
 
 import { html } from '../lib/html.js';
-import { MAX_COLOR_OPTIONS, MERGE_STRENGTH_THRESHOLD, FIT_MODES } from '../types.js';
+import { MAX_COLOR_OPTIONS, MERGE_STRENGTH_THRESHOLD, FIT_MODES, THEME_COLORS } from '../types.js';
 
 /**
  * 変換設定パネル。
@@ -34,6 +34,8 @@ export function SettingsPanel(props) {
     canConvert = false,
     canCrop = false,
     onOpenCrop,
+    themeColor = '',
+    onThemeChange,
     warnings = [],
   } = props;
 
@@ -76,6 +78,27 @@ export function SettingsPanel(props) {
     <section class="settings panel">
       <h2 class="panel__title">変換設定</h2>
       <div class="panel__body">
+
+        <div class="field">
+          <span class="field__label">テーマカラー</span>
+          <div class="field__row theme-swatches">
+            ${THEME_COLORS.map(
+              (t) => html`
+                <button
+                  type="button"
+                  key=${t.accent}
+                  class=${'theme-swatch' + ((themeColor || '') === t.accent ? ' theme-swatch--active' : '')}
+                  style=${`background:${t.accent}`}
+                  title=${t.name}
+                  aria-label=${t.name}
+                  onClick=${() => onThemeChange && onThemeChange(t.accent)}
+                ></button>
+              `
+            )}
+          </div>
+        </div>
+
+        <div class="divider"></div>
 
         <!-- ===== 基本設定 ===== -->
         <h3 class="settings__group-title">基本</h3>

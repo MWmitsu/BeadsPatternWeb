@@ -868,6 +868,94 @@ input.warn--error {
 .cropmodal__zoom input { flex: 1; }
 .cropmodal__btns { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* ビーズリスト(買い物リスト)モーダル */
+.beadlist {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.beadlist__sheet {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 460px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.beadlist__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.beadlist__head .badge { background: rgba(255, 255, 255, 0.25); color: #fff; }
+.beadlist__close {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1.4em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.beadlist__meta { padding: 8px 14px; border-bottom: 1px solid var(--border); }
+.beadlist__list { overflow-y: auto; flex: 1; }
+.beadlist__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.beadlist__dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+}
+.beadlist__info { flex: 1; min-width: 0; }
+.beadlist__name { font-weight: 600; font-size: 0.92em; }
+.beadlist__no { font-size: 0.78em; }
+.beadlist__count { text-align: right; flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; }
+.beadlist__count-need { font-size: 1.2em; font-weight: 700; }
+.beadlist__count-base { font-size: 0.72em; }
+.beadlist__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+.beadlist__foot-note { font-size: 0.78em; margin-right: auto; }
+
+/* テーマカラーのスウォッチ */
+.theme-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.theme-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+}
+.theme-swatch--active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
 /* 印刷: 分割の操作と区画 */
 .print-controls__opt {
   display: inline-flex;
