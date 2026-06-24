@@ -38,6 +38,8 @@ export function PrintView(props) {
     onClose,
     bufferPercent = 0,
     beadPaletteColors = null,
+    round = false,
+    plateMask = null,
   } = props;
 
   // 大きい図案は既定で分割印刷ON
@@ -63,7 +65,7 @@ export function PrintView(props) {
       // --- 1ページ印刷: 完成イメージ + 数字付き設計図 ---
       if (previewRef.current) {
         previewRef.current.replaceChildren();
-        const c = renderPatternToCanvas(pattern, { cellSize: 12, showGrid: false, showNumbers: false });
+        const c = renderPatternToCanvas(pattern, { cellSize: 12, showGrid: false, showNumbers: false, round, plateMask });
         c.className = 'print-canvas';
         previewRef.current.appendChild(c);
       }
@@ -110,7 +112,7 @@ export function PrintView(props) {
         }
       }
     }
-  }, [pattern, split, tileSize]);
+  }, [pattern, split, tileSize, round, plateMask]);
 
   const createdAtLabel = formatDate(createdAt);
   const sortedColors = (colors || []).slice().sort((a, b) => a.id - b.id);

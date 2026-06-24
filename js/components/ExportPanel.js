@@ -42,6 +42,8 @@ export function ExportPanel(props) {
     disabled,
     bufferPercent = 0,
     beadPaletteColors = null,
+    round = false,
+    plateMask = null,
   } = props;
 
   // 隠しファイル入力(JSON読込用)への参照
@@ -50,7 +52,7 @@ export function ExportPanel(props) {
   // 完成イメージPNGを保存(グリッド無し)
   function handleExportFinished() {
     if (!pattern) return;
-    exportFinishedPng(pattern, { showGrid: false });
+    exportFinishedPng(pattern, { showGrid: false, round, plateMask });
   }
 
   // 数字付き設計図PNGを保存

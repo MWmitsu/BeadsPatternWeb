@@ -322,6 +322,8 @@ export function App() {
     h: pattern.height,
     grid: cellsToGrid(pattern.cells, pattern.width, pattern.height),
     colors: pattern.colors.map((c) => ({ ...c })),
+    sw: settings.width,
+    sh: settings.height,
   });
   const restoreSnapshot = (snap) => {
     const cells = gridToCells(snap.grid, snap.w, snap.h, snap.colors);
@@ -334,6 +336,11 @@ export function App() {
       totalBeads,
       backgroundCount: snap.w * snap.h - totalBeads,
     });
+    // 回転などで設定寸法も変わっていた場合は連動して戻す
+    if (snap.sw != null && (snap.sw !== settings.width || snap.sh !== settings.height)) {
+      setSettings((s) => ({ ...s, width: snap.sw, height: snap.sh }));
+      setCellSize(autoFitCellSize(snap.w));
+    }
   };
   // 編集の直前に呼ぶ。現状を past へ積み future を捨てる。
   const pushHistory = () => {
@@ -448,6 +455,7 @@ export function App() {
     const cid = pattern.cells[y * pattern.width + x].colorId;
     if (cid === BACKGROUND_COLOR_ID) {
       setActiveTool('eraser');
+      setCheckMode(false);
     } else {
       setEditColorId(cid);
       setCheckMode(false);
@@ -477,7 +485,15 @@ export function App() {
       setSettings((s) => ({ ...s, width: newW, height: newH }));
       setCellSize(autoFitCellSize(newW));
     }
-    setDoneSet(new Set());
+    // 作業チェックも同じ写像で追従させる
+    const newDone = new Set();
+    for (const idx of doneSet) {
+      const oy = Math.floor(idx / W);
+      const ox = idx % W;
+      const [nx, ny] = mapFn(ox, oy, W, H);
+      newDone.add(ny * newW + nx);
+    }
+    setDoneSet(newDone);
     setHighlightColorId(null);
   };
   const handleFlipH = () => transformPattern((x, y, W) => [W - 1 - x, y], pattern.width, pattern.height);
@@ -602,7 +618,13 @@ export function App() {
       setError('共有する図案がありません。');
       return;
     }
-    const canvas = renderPatternToCanvas(pattern, { cellSize: 12, showGrid: false, showNumbers: false });
+    const canvas = renderPatternToCanvas(pattern, {
+      cellSize: 12,
+      showGrid: false,
+      showNumbers: false,
+      round: settings.roundBeads,
+      plateMask,
+    });
     canvas.toBlob((blob) => {
       if (!blob) return;
       const fname = (title || 'beads') + '.png';
@@ -764,14 +786,14 @@ export function App() {
     root.setProperty('--accent-weak', lighten(0.86));
   }, [settings.themeColor]);
 
-  // プレート形状を変えたら反映する。画像があれば再変換して新形状で作り直す(非累積)。
+  // プレート形状を変えたら現在の図案にマスクを適用する(手動編集は保持・Undo可)。
+  // 元画像からきれいに作り直したい場合は「画像から変換」を押す。
   useEffect(() => {
     if (!pattern) return;
-    if (image) {
-      convertWith(image);
-    } else {
-      const masked = maskOffShape(pattern, settings.plateShape);
-      if (masked !== pattern) setPattern(masked);
+    const masked = maskOffShape(pattern, settings.plateShape);
+    if (masked !== pattern) {
+      pushHistory();
+      setPattern(masked);
     }
     // eslint-disable-next-line
   }, [settings.plateShape]);
@@ -789,6 +811,8 @@ export function App() {
           cellSize: cs,
           showGrid: false,
           showNumbers: false,
+          round: settings.roundBeads,
+          plateMask,
         }).toDataURL('image/png');
       } catch (_) {
         /* サムネ生成失敗は無視 */
@@ -1020,6 +1044,8 @@ export function App() {
             disabled=${!pattern}
             bufferPercent=${settings.bufferPercent}
             beadPaletteColors=${beadPaletteColors}
+            round=${settings.roundBeads}
+            plateMask=${plateMask}
           />
           <${ProjectList}
             projects=${projects}
@@ -1156,6 +1182,8 @@ export function App() {
           onClose=${() => setPrinting(false)}
           bufferPercent=${settings.bufferPercent}
           beadPaletteColors=${beadPaletteColors}
+          round=${settings.roundBeads}
+          plateMask=${plateMask}
         />
       `}
 
