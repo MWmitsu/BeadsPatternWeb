@@ -38,12 +38,15 @@ export function downloadCanvas(canvas, filename) {
  * @param {Object} [opts] cellSize / showGrid / backgroundColor などを上書き可能
  */
 export function exportFinishedPng(pattern, opts = {}) {
+  // 「背景＝透明として扱う」で空マスがある図案は、PNGも背景を透明にする
+  const hasTransparentBg = (pattern.backgroundCount || 0) > 0;
   const canvas = renderPatternToCanvas(pattern, {
     ...opts,
     // 以下は完成イメージとして必ず適用する値(opts より優先)
     cellSize: opts.cellSize ?? 20,
     showGrid: opts.showGrid ?? false,
     showNumbers: false,
+    backgroundColor: opts.backgroundColor ?? (hasTransparentBg ? 'transparent' : '#FFFFFF'),
   });
   const title = sanitizeName(pattern.title);
   downloadCanvas(canvas, `${title}_完成イメージ.png`);

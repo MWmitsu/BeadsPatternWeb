@@ -43,8 +43,12 @@ export function drawPattern(ctx, pattern, opts = {}) {
   const H = height * cellSize;
 
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = backgroundColor;
-  ctx.fillRect(0, 0, W, H);
+  // backgroundColor が 'transparent'/null のときは塗らず透明のままにする。
+  // (「背景＝透明として扱う」のとき、空マスを白で覆わず透明=市松模様で見せるため)
+  if (backgroundColor && backgroundColor !== 'transparent') {
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   // --- セル塗り ---
   for (const cell of cells) {

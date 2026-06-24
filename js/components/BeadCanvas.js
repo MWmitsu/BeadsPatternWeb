@@ -140,7 +140,8 @@ export function BeadCanvas(props) {
     canvas.height = Math.max(1, pattern.height * cs);
     const ctx = canvas.getContext('2d');
     const opts = buildDrawOpts(viewMode, { showGrid, showNumbers, highlightColorId });
-    drawPattern(ctx, pattern, { ...opts, cellSize: cs, doneSet, plateMask, round });
+    // プレビューは背景を塗らず透明にし、空マス(透明背景)を市松模様で見せる
+    drawPattern(ctx, pattern, { ...opts, cellSize: cs, doneSet, plateMask, round, backgroundColor: 'transparent' });
   }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, renderCell, doneSet, plateMask, round]);
 
   // ---- 表示変換(全画面) ----

@@ -405,7 +405,8 @@ input.warn--error {
 .bead-canvas__canvas {
   display: block;
   image-rendering: pixelated;
-  background: #fff;
+  /* 背景は塗らない。空マス(透明背景)はステージの市松模様が透けて「ビーズ無し」と分かる */
+  background: transparent;
   box-shadow: 0 0 0 1px var(--border);
 }
 /* 塗り/作業モード時はドラッグでスクロールや選択をさせず描画に専念 */
