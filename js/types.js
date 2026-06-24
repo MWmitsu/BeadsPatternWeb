@@ -131,9 +131,9 @@ export const DEFAULT_SETTINGS = {
 
 /** 画像の合わせ方(アスペクト比の扱い) */
 export const FIT_MODES = [
-  { value: 'stretch', label: '引き伸ばす', hint: 'グリッド全体に広げる（比率は無視）' },
-  { value: 'crop', label: '切り抜く', hint: '比率を保ち、使う範囲を選ぶ' },
-  { value: 'contain', label: '全体を入れる', hint: '比率を保ち全体を収める（余白は背景の扱い＝白か透明になります）' },
+  { value: 'stretch', label: '引き伸ばす', hint: 'マス目全体に広げます（縦横の比率は無視します）。' },
+  { value: 'crop', label: '切り抜く', hint: '縦横の比率を保ち、使う範囲を選びます。' },
+  { value: 'contain', label: '全体を入れる', hint: '縦横の比率を保って全体を収めます（余白は背景の扱い＝白か透明になります）。' },
 ];
 
 /** 分割印刷の1区画あたりのマス数(選択肢) */

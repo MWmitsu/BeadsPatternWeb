@@ -30,16 +30,16 @@ export function BeadListModal(props) {
     : '';
 
   return html`
-    <div class="beadlist" role="dialog" aria-modal="true" aria-label="ビーズリスト">
+    <div class="beadlist" role="dialog" aria-modal="true" aria-label="ビーズ一覧">
       <div class="beadlist__sheet">
         <div class="beadlist__head">
-          <strong>ビーズリスト</strong>
+          <strong>ビーズ一覧</strong>
           ${paletteName ? html`<span class="badge">${paletteName}</span>` : null}
           <button class="beadlist__close" type="button" onClick=${onClose} aria-label="閉じる">×</button>
         </div>
 
         <div class="beadlist__meta muted">
-          全 ${colors.length} 色・総 ${totalBeads.toLocaleString()}個（必要 ${totalNeed.toLocaleString()}個）${sizeText ? '・' + sizeText : ''}
+          全 ${colors.length} 色・総ビーズ ${totalBeads.toLocaleString()}個（必要数 ${totalNeed.toLocaleString()}個）${sizeText ? '・' + sizeText : ''}
         </div>
 
         <div class="beadlist__list">
@@ -54,12 +54,12 @@ export function BeadListModal(props) {
                     <span class="beadlist__dot" style=${`background:${c.hex}`}></span>
                     <div class="beadlist__info">
                       <div class="beadlist__name">${c.id}. ${label}</div>
-                      <div class="beadlist__no muted">${bead ? 'No: ' + bead.code : c.hex}</div>
+                      <div class="beadlist__no muted">${bead ? '色番号：' + bead.code : c.hex}</div>
                     </div>
                     <div class="beadlist__count">
                       <span class="beadlist__count-need">${need.toLocaleString()}</span>
                       ${bufferPercent > 0
-                        ? html`<span class="beadlist__count-base muted">使用 ${c.count.toLocaleString()}</span>`
+                        ? html`<span class="beadlist__count-base muted">使用 ${c.count.toLocaleString()}個</span>`
                         : null}
                     </div>
                   </div>
@@ -69,7 +69,7 @@ export function BeadListModal(props) {
 
         <div class="beadlist__foot">
           ${bufferPercent > 0
-            ? html`<span class="muted beadlist__foot-note">「必要」は予備${bufferPercent}%込みの目安です</span>`
+            ? html`<span class="muted beadlist__foot-note">「必要数」は使用個数に予備${bufferPercent}%を足した目安です。</span>`
             : null}
           <button class="btn btn--primary" type="button" onClick=${onClose}>閉じる</button>
         </div>

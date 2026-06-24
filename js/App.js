@@ -53,8 +53,8 @@ import {
 const VIEW_MODES = [
   { key: 'finished', label: '完成イメージ' },
   { key: 'numbers', label: '数字付き設計図' },
-  { key: 'grid', label: 'グリッド' },
-  { key: 'highlight', label: '色別ハイライト' },
+  { key: 'grid', label: 'マス目' },
+  { key: 'highlight', label: '色別に強調表示' },
   { key: 'compare', label: '元画像と比較' },
 ];
 
@@ -252,7 +252,7 @@ export function App() {
           }, 60);
         }
       } catch (e) {
-        setError('画像の変換に失敗しました' + (e && e.message ? ': ' + e.message : ''));
+        setError('画像の変換に失敗しました' + (e && e.message ? '：' + e.message : '。'));
       } finally {
         setConverting(false);
       }
@@ -600,7 +600,7 @@ export function App() {
     if (!pattern) return;
     const pal = BEAD_PALETTES.find((p) => p.id === settings.beadPaletteId);
     if (!pal) {
-      setError('「ビーズ色」で 標準/パーラー/ハマ のいずれかを選んでください。');
+      setError('「ビーズ色」で、標準／パーラー／ハマのいずれかを選んでください。');
       return;
     }
     pushHistory();
@@ -609,7 +609,7 @@ export function App() {
     setHighlightColorId(null);
     setEditColorId(null);
     setDoneSet(new Set());
-    flash(`市販色（${pal.name}）に合わせました。`);
+    flash(`市販ビーズ色（${pal.name}）に合わせました。`);
   };
 
   // ---- 共有: 画像(Web Share / フォールバックでダウンロード) ----
@@ -668,7 +668,7 @@ export function App() {
       grid,
     });
     if (estimateHashLength(data) > 14000) {
-      setError('図案が大きいため共有リンクが長くなりすぎます。「画像を共有」をご利用ください。');
+      setError('図案が大きいため、共有リンクが長くなりすぎます。「画像を共有」をご利用ください。');
       return;
     }
     const url = location.origin + location.pathname + '#' + SHARE_HASH_KEY + '=' + data;
@@ -925,7 +925,7 @@ export function App() {
     const list = [];
     const beads = settings.width * settings.height;
     if (settings.width > WARN.maxDimension || settings.height > WARN.maxDimension) {
-      list.push(`横・縦は${WARN.maxDimension}マス以下を推奨します(大きすぎると動作が重くなります)。`);
+      list.push(`横ビーズ数・縦ビーズ数は${WARN.maxDimension}マス以下をおすすめします（大きすぎると動作が重くなります）。`);
     }
     if (beads > WARN.hugeBeadCount) {
       list.push('マス数が非常に多く、変換・表示・印刷が重くなる可能性があります。');
@@ -994,11 +994,11 @@ export function App() {
           <details class="help">
             <summary class="help__summary">はじめての方へ（使い方）</summary>
             <ol class="help__steps">
-              <li>「画像を選ぶ」で写真を読み込む（または<b>サンプルで試す</b>）。</li>
-              <li>横・縦のマス数と最大色数を決めて<b>「画像から変換」</b>。</li>
-              <li>比率が違う写真は<b>「画像の合わせ方」</b>で引き伸ばす／切り抜くを選べます。</li>
-              <li>右の色一覧で番号を確認。番号クリックでその色だけ強調。印刷・PNG/CSV保存も可能。</li>
-              <li><b>「制作・共有ツール」</b>で 市販ビーズ色の目安・必要数・作業チェック・共有 が使えます。</li>
+              <li>「画像を選ぶ」で写真を読み込みます（または<b>「サンプルで試す」</b>）。</li>
+              <li>横ビーズ数・縦ビーズ数と最大色数を決めて<b>「画像から変換」</b>を押します。</li>
+              <li>比率が違う写真は<b>「画像の合わせ方」</b>で、引き伸ばす／切り抜くを選べます。</li>
+              <li>右の色一覧で色番号を確認します。色番号をクリックすると、その色だけ強調表示できます。印刷や、画像（PNG）・一覧データ（CSV／表計算ソフトで開けます）の保存もできます。</li>
+              <li><b>「制作・共有ツール」</b>で、市販ビーズ色の目安・必要数・作業チェック・共有が使えます。</li>
             </ol>
           </details>
           <${ImageUploader}
@@ -1057,7 +1057,7 @@ export function App() {
           ${editColorId != null &&
           html`
             <div class="edit-hint">
-              <span>🖌 塗りモード: ドラッグでまとめて <b>${editColorLabel}</b> に塗れます。</span>
+              <span>🖌 塗りモード：ドラッグ（押したまま動かす）でまとめて <b>${editColorLabel}</b> に塗れます。</span>
               <button class="btn btn--sm btn--ghost" type="button" onClick=${() => setEditColorId(null)}>
                 やめる
               </button>
@@ -1067,7 +1067,7 @@ export function App() {
           ${checkMode &&
           html`
             <div class="edit-hint edit-hint--check">
-              <span>✓ 作業モード: ドラッグでまとめてチェック／解除（${doneCount} / ${totalBeads}）。</span>
+              <span>✓ 作業チェック：ドラッグでまとめてチェック／解除できます（${doneCount} / ${totalBeads}）。</span>
               <button class="btn btn--sm btn--ghost" type="button" onClick=${() => setCheckMode(false)}>やめる</button>
             </div>
           `}

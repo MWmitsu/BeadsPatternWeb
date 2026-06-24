@@ -103,7 +103,7 @@ export function ExportPanel(props) {
         onImportProject(obj);
       } catch (err) {
         // パース失敗(壊れたファイル/JSON以外)はアラートで通知
-        alert('JSONの読み込みに失敗しました。ファイルが壊れている可能性があります。');
+        alert('保存ファイル（JSON）の読み込みに失敗しました。ファイルが壊れている可能性があります。');
       }
     };
     reader.onerror = () => {
@@ -128,13 +128,13 @@ export function ExportPanel(props) {
               class="btn btn--primary"
               disabled=${disabled}
               onClick=${handleExportFinished}
-            >完成イメージPNG</button>
+            >完成イメージを画像（PNG）で保存</button>
             <button
               type="button"
               class="btn"
               disabled=${disabled}
               onClick=${handleExportNumbered}
-            >数字付き設計図PNG</button>
+            >数字付き設計図を画像（PNG）で保存</button>
           </div>
         </div>
 
@@ -148,7 +148,7 @@ export function ExportPanel(props) {
               class="btn"
               disabled=${disabled}
               onClick=${handleExportCsv}
-            >色一覧CSV</button>
+            >色一覧を一覧データ（CSV）で保存</button>
             <button
               type="button"
               class="btn"
@@ -161,7 +161,7 @@ export function ExportPanel(props) {
         <div class="divider"></div>
 
         <div class="export__group">
-          <div class="field__label">プロジェクトの保存・読込</div>
+          <div class="field__label">図案の保存・読み込み</div>
           <div class="export__btnrow">
             <button
               type="button"
@@ -182,8 +182,8 @@ export function ExportPanel(props) {
             >このブラウザに保存</button>
           </div>
           <p class="muted export__note">
-            「このブラウザに保存」は次回この端末で開いたときに続きから使えます。
-            「ファイルに書き出す」は設定や図案を1つのファイルにまとめ、別の端末へ移したりバックアップに使えます。
+            「このブラウザに保存」は、次回このブラウザで開いたときに続きから使えます。
+            「ファイルに書き出す」は、設定や図案を1つのファイルにまとめ、別の端末へ移したりバックアップに使えます。
           </p>
         </div>
 

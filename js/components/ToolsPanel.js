@@ -54,14 +54,14 @@ export function ToolsPanel(props) {
 
         <!-- ビーズ色 -->
         <div class="tools__block">
-          <div class="field__label">ビーズ色（市販色の目安）</div>
+          <div class="field__label">ビーズ色（近い市販ビーズ色の目安）</div>
           <div class="tools__row">
             <select
               class="tools__select"
               value=${beadPaletteId}
               onChange=${(e) => onBeadPaletteChange && onBeadPaletteChange(e.target.value)}
             >
-              <option value="none">使わない（検出色のまま）</option>
+              <option value="none">使わない（判定した色のまま）</option>
               ${beadPalettes.map((p) => html`<option key=${p.id} value=${p.id}>${p.name}</option>`)}
             </select>
             <button
@@ -69,16 +69,16 @@ export function ToolsPanel(props) {
               class="btn btn--sm"
               disabled=${disabled || beadPaletteId === 'none'}
               onClick=${() => onSnapToBeads && onSnapToBeads()}
-            >市販色に合わせる</button>
+            >市販ビーズ色に合わせる</button>
           </div>
           ${selected && selected.note
             ? html`<p class="field__hint muted">${selected.note}</p>`
             : html`<p class="field__hint muted">
-                色一覧に「近い市販色」と番号を表示します。「市販色に合わせる」で図案全体をその色に置き換えます。
+                色一覧に「近い市販ビーズ色」と色番号を表示します。「市販ビーズ色に合わせる」で図案全体をその色に置き換えます。
               </p>`}
           ${sizeMm > 0 && patternWidth > 0
             ? html`<p class="field__hint muted">
-                完成サイズの目安: 約 ${((patternWidth * sizeMm) / 10).toFixed(1)} × ${((patternHeight * sizeMm) / 10).toFixed(1)} cm（${sizeMm}mmビーズ）
+                完成サイズの目安：約 ${((patternWidth * sizeMm) / 10).toFixed(1)} × ${((patternHeight * sizeMm) / 10).toFixed(1)} cm（${sizeMm}mmビーズ）
               </p>`
             : null}
           <div class="tools__row" style=${{ marginTop: '6px' }}>
@@ -109,7 +109,7 @@ export function ToolsPanel(props) {
               <span>%</span>
             </span>
           </label>
-          <p class="field__hint muted">色一覧・印刷・CSVに「必要数（個数＋予備）」を表示します。買い足しの目安に。</p>
+          <p class="field__hint muted">色一覧・印刷・一覧データ（CSV／表計算ソフトで開けます）に「必要数（使用個数＋予備）」を表示します。買い足しの目安にできます。</p>
         </div>
 
         <div class="divider"></div>
@@ -147,9 +147,9 @@ export function ToolsPanel(props) {
               type="button"
               class="btn btn--sm btn--ghost"
               disabled=${disabled || highlightColorId == null}
-              title=${highlightColorId == null ? 'まず色一覧で色を選んで強調表示してください' : ''}
+              title=${highlightColorId == null ? 'まず色一覧で色を選んで強調表示してください。' : ''}
               onClick=${() => onMarkHighlightDone && onMarkHighlightDone(true)}
-            >${highlightColorId != null ? `色${highlightColorId}を全部チェック` : '強調色を全部チェック'}</button>
+            >${highlightColorId != null ? `色番号${highlightColorId}を全部チェック` : '強調表示中の色を全部チェック'}</button>
             <button
               type="button"
               class="btn btn--sm btn--ghost"
@@ -170,7 +170,7 @@ export function ToolsPanel(props) {
               class="btn btn--sm"
               disabled=${disabled}
               onClick=${() => onShareImage && onShareImage()}
-            >画像を共有／保存</button>
+            >画像を共有</button>
             <button
               type="button"
               class="btn btn--sm"
@@ -179,7 +179,7 @@ export function ToolsPanel(props) {
             >共有リンクをコピー</button>
           </div>
           <p class="field__hint muted">
-            「共有リンク」は図案をURLに埋め込みます（サーバー不要）。受け取った人が開くとそのまま表示されます。
+            「共有リンク」は図案をリンクの中に埋め込みます（準備なしで使えます）。受け取った人が開くとそのまま表示されます。
           </p>
         </div>
 

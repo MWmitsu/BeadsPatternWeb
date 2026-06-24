@@ -273,7 +273,7 @@ export function BeadCanvas(props) {
     return html`
       <div class="bead-canvas">
         <div class="bead-canvas__placeholder muted">
-          画像を選んで〔画像から変換〕を押してください
+          画像を選んで「画像から変換」を押してください。
         </div>
       </div>
     `;
@@ -320,12 +320,12 @@ export function BeadCanvas(props) {
             onClick=${() => setFullscreen((v) => !v)}>${fullscreen ? '✕ 閉じる' : '⛶ 全画面'}</button>
           ${fullscreen && onToggleCheckMode
             ? html`<button type="button" class=${'btn btn--sm ' + (checkMode ? 'btn--primary' : 'btn--ghost')}
-                onClick=${() => onToggleCheckMode()}>${checkMode ? '作業中' : '作業'}</button>`
+                onClick=${() => onToggleCheckMode()}>${checkMode ? 'チェック中' : 'チェック'}</button>`
             : null}
         </div>
         <div class="bead-canvas__info muted">
           ${checkMode
-            ? html`<b>作業 ${doneCount} / ${totalBeads}（${donePct}%）</b>`
+            ? html`<b>チェック中 ${doneCount} / ${totalBeads}（${donePct}%）</b>`
             : html`${pattern.width} × ${pattern.height} マス（計 ${totalCells.toLocaleString()} マス）`}
         </div>
       </div>
@@ -346,25 +346,25 @@ export function BeadCanvas(props) {
                 ? html`<span class="bead-canvas__curcolor swatch" style=${`background:${curColor.hex}`} title=${`現在の色 ${curColor.name || curColor.hex}`}></span>`
                 : null}
               <button type="button" class=${'btn btn--sm bead-canvas__mir ' + (mirrorX ? 'btn--primary' : 'btn--ghost')}
-                title="左右ミラー" onClick=${() => onToggleMirrorX && onToggleMirrorX()}>⇆</button>
+                title="左右反転" onClick=${() => onToggleMirrorX && onToggleMirrorX()}>⇆</button>
               <button type="button" class=${'btn btn--sm bead-canvas__mir ' + (mirrorY ? 'btn--primary' : 'btn--ghost')}
-                title="上下ミラー" onClick=${() => onToggleMirrorY && onToggleMirrorY()}>⇅</button>
+                title="上下反転" onClick=${() => onToggleMirrorY && onToggleMirrorY()}>⇅</button>
             </div>
           `
         : null}
 
       ${interactive || fullscreen
         ? html`<div class="bead-canvas__draghint muted">
-            ${fullscreen ? '2本指でズーム・移動。' : ''}${
+            ${fullscreen ? '2本指で拡大・移動できます。' : ''}${
               checkMode
-                ? '1本指のドラッグでまとめてチェック／解除。'
+                ? '1本指のドラッグ（押したまま動かす）でまとめてチェック／解除できます。'
                 : interactive
                 ? activeTool === 'eyedropper'
-                  ? 'マスをタップでその色を取得。'
+                  ? 'マスをタップすると、その色を取り出せます。'
                   : activeTool === 'bucket'
-                  ? 'タップで同じ色のつながった範囲を塗りつぶし。'
-                  : '1本指のドラッグでまとめて' + (activeTool === 'eraser' ? '消去' : '塗り') + '。'
-                : '1本指のドラッグで移動。'
+                  ? 'タップすると、同じ色のつながった範囲をまとめて塗れます。'
+                  : '1本指のドラッグ（押したまま動かす）でまとめて' + (activeTool === 'eraser' ? '消せます' : '塗れます') + '。'
+                : '1本指のドラッグ（押したまま動かす）で移動できます。'
             }
           </div>`
         : null}

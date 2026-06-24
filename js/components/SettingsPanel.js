@@ -156,7 +156,7 @@ export function SettingsPanel(props) {
         <div class="field">
           <label class="field__row toggle">
             <input type="checkbox" checked=${settings.showGrid} onChange=${(e) => patch({ showGrid: e.target.checked })} />
-            <span class="field__label">グリッド線を表示</span>
+            <span class="field__label">マス目の線を表示</span>
           </label>
         </div>
 
@@ -219,7 +219,7 @@ export function SettingsPanel(props) {
 
           <div class="field">
             <div class="field__row">
-              <label class="field__label" for="settings-plate">プレート形状</label>
+              <label class="field__label" for="settings-plate">台座（プレート）の形</label>
               <select
                 id="settings-plate"
                 class="settings__select"
@@ -229,7 +229,7 @@ export function SettingsPanel(props) {
                 ${PLATE_SHAPES.map((s) => html`<option key=${s.id} value=${s.id}>${s.name}</option>`)}
               </select>
             </div>
-            <p class="field__hint muted">形状外はビーズ無し（空ペグ）になります。円・六角などの台座に対応。</p>
+            <p class="field__hint muted">形の外はビーズを置かないマス（空マス）になります。円・六角などの台座にも使えます。</p>
           </div>
 
           <div class="field">
@@ -244,7 +244,7 @@ export function SettingsPanel(props) {
 
           <div class="field">
             <div class="field__row">
-              <label class="field__label" for="settings-distance">色をまとめる距離</label>
+              <label class="field__label" for="settings-distance">色をまとめる近さ</label>
               <div class="settings__range-wrap">
                 <input
                   id="settings-distance"
@@ -293,7 +293,7 @@ export function SettingsPanel(props) {
           <div class="field">
             <label class="field__row toggle">
               <input type="checkbox" checked=${detection.dithering} onChange=${(e) => patchDetection({ dithering: e.target.checked })} />
-              <span class="field__label">ディザリング</span>
+              <span class="field__label">色をなめらかに混ぜる（ディザリング）</span>
             </label>
             <p class="field__hint muted">色の境目を細かい点で混ぜ、なめらかに見せます。</p>
           </div>
@@ -305,7 +305,7 @@ export function SettingsPanel(props) {
                 checked=${detection.contrastCorrection}
                 onChange=${(e) => patchDetection({ contrastCorrection: e.target.checked })}
               />
-              <span class="field__label">コントラスト補正</span>
+              <span class="field__label">明暗の差をはっきりさせる（コントラスト補正）</span>
             </label>
             <p class="field__hint muted">明暗の差をはっきりさせます。</p>
           </div>
@@ -317,9 +317,9 @@ export function SettingsPanel(props) {
                 checked=${detection.outlineEnhancement}
                 onChange=${(e) => patchDetection({ outlineEnhancement: e.target.checked })}
               />
-              <span class="field__label">輪郭強調</span>
+              <span class="field__label">ふち（輪郭）をくっきりさせる</span>
             </label>
-            <p class="field__hint muted">絵の輪郭をくっきりさせます。</p>
+            <p class="field__hint muted">絵のふち（輪郭）をくっきりさせます。</p>
           </div>
         </details>
 

@@ -103,7 +103,7 @@ export function PrintView(props) {
           const label = document.createElement('div');
           label.className = 'print-tile__label';
           label.textContent =
-            `区画 ${n}/${tileCount}（行${r + 1}・列${c + 1}）　横 ${c0}–${c1} / 縦 ${r0}–${r1}`;
+            `区画 ${n}／${tileCount}（行${r + 1}・列${c + 1}）　横 ${c0}〜${c1} ／ 縦 ${r0}〜${r1}`;
           tile.appendChild(label);
           tile.appendChild(canvas);
           tilesRef.current.appendChild(tile);
@@ -145,7 +145,7 @@ export function PrintView(props) {
           <span class="badge">横 ${width} マス</span>
           <span class="badge">縦 ${height} マス</span>
           <span class="badge">総ビーズ数 ${formatNumber(totalBeads)} 個</span>
-          <span class="print-meta__date muted">作成日時: ${createdAtLabel}</span>
+          <span class="print-meta__date muted">作成日時：${createdAtLabel}</span>
         </div>
 
         ${!pattern
@@ -166,8 +166,8 @@ export function PrintView(props) {
                 <h2 class="print-section__title">全体の概観（赤線が区画の区切り）</h2>
                 <div class="print-figure print-overview" ref=${overviewRef}></div>
                 <p class="muted">
-                  全 ${tileCount} 区画（横 ${cols} × 縦 ${rows}）。各区画を1ページずつ印刷し、
-                  列・行番号を合わせて貼り合わせてください。
+                  全 ${tileCount} 区画（横 ${cols} × 縦 ${rows}）に分かれています。区画（分けて印刷する1枚ぶん）を
+                  1ページずつ印刷し、列・行番号を合わせて貼り合わせてください。
                 </p>
               </section>
               <div class="print-tiles" ref=${tilesRef}></div>
@@ -176,12 +176,12 @@ export function PrintView(props) {
         ${pattern &&
         html`
           <section class="print-section">
-            <h2 class="print-section__title">色番号一覧</h2>
+            <h2 class="print-section__title">色一覧</h2>
             <table class="print-colorlist">
               <thead>
                 <tr>
-                  <th>番号</th><th>見本</th><th>HEX</th><th>色名</th><th>個数</th><th>割合</th>
-                  <th>必要数</th>
+                  <th>色番号</th><th>見本</th><th>色コード</th><th>色名</th><th>使用個数</th><th>割合（％）</th>
+                  <th>必要数（予備込み）</th>
                   ${beadPaletteColors ? html`<th>近い市販色</th>` : null}
                 </tr>
               </thead>

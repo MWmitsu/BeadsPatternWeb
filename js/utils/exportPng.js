@@ -46,7 +46,7 @@ export function exportFinishedPng(pattern, opts = {}) {
     showNumbers: false,
   });
   const title = sanitizeName(pattern.title);
-  downloadCanvas(canvas, `${title}_完成.png`);
+  downloadCanvas(canvas, `${title}_完成イメージ.png`);
 }
 
 /**

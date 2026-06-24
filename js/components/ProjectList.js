@@ -43,7 +43,7 @@ export function ProjectList(props) {
 
   // 削除は誤操作防止のため確認を挟む
   const handleDelete = (project) => {
-    const ok = window.confirm(`「${project.title || '無題'}」を削除します。よろしいですか?`);
+    const ok = window.confirm(`「${project.title || '無題'}」を削除します。よろしいですか？`);
     if (ok && onDelete) onDelete(project.id);
   };
 
@@ -52,7 +52,7 @@ export function ProjectList(props) {
       <h2 class="panel__title">保存した図案</h2>
       <div class="panel__body">
         ${projects.length === 0
-          ? html`<p class="projects__empty muted">保存された図案はありません</p>`
+          ? html`<p class="projects__empty muted">保存した図案はありません。</p>`
           : html`
               <ul class="projects__list">
                 ${projects.map((p) => {
@@ -71,7 +71,7 @@ export function ProjectList(props) {
                               src=${p.thumbnail}
                               alt=${`${p.title || '無題'} のサムネイル`}
                             />`
-                          : html`<span class="projects__thumb-empty muted">No Image</span>`}
+                          : html`<span class="projects__thumb-empty muted">画像なし</span>`}
                       </div>
 
                       <div class="projects__info">
@@ -99,7 +99,7 @@ export function ProjectList(props) {
                           class="btn btn--primary btn--sm"
                           onClick=${() => onLoad && onLoad(p.id)}
                         >
-                          読込
+                          読み込む
                         </button>
                         <button
                           type="button"

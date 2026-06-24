@@ -47,7 +47,7 @@ export function ImageUploader(props) {
       });
     } catch (err) {
       const message =
-        err && err.message ? err.message : '画像の読み込みに失敗しました';
+        err && err.message ? err.message : '画像を読み込めませんでした。';
       if (onError) onError(message);
     }
   };
@@ -118,7 +118,7 @@ export function ImageUploader(props) {
                     <img
                       class="uploader__image"
                       src=${originalUrl}
-                      alt="元画像プレビュー"
+                      alt="元画像"
                     />
                     ${
                       sourceImageName
@@ -126,7 +126,7 @@ export function ImageUploader(props) {
                         : null
                     }
                     <div class="uploader__hint muted">
-                      別の画像に差し替えるにはここをクリック、またはドロップ
+                      別の画像に差し替えるには、ここをクリックするか画像をドラッグ&ドロップしてください。
                     </div>
                   </div>
                 `
@@ -135,9 +135,9 @@ export function ImageUploader(props) {
                     <div class="uploader__lead">
                       ここに画像をドラッグ&ドロップ
                     </div>
-                    <div class="muted">またはクリックして選択</div>
+                    <div class="muted">またはクリックして選んでください。</div>
                     <div class="uploader__formats muted">
-                      対応形式: JPEG / PNG / WebP
+                      使える形式：JPEG／PNG／WebP
                     </div>
                   </div>
                 `

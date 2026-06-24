@@ -90,11 +90,11 @@ export function CropModal(props) {
   };
 
   return html`
-    <div class="cropmodal" role="dialog" aria-modal="true" aria-label="使う範囲の選択">
+    <div class="cropmodal" role="dialog" aria-modal="true" aria-label="使う範囲を選ぶ">
       <div class="cropmodal__sheet">
         <div class="cropmodal__head">
           <strong>使う範囲を選ぶ</strong>
-          <span class="muted">枠は ${gridW}×${gridH} の比率です。ドラッグで位置、スライダーで拡大。</span>
+          <span class="muted">枠は ${gridW}×${gridH} の比率です。ドラッグ（押したまま動かす）で位置を変え、スライダーで拡大できます。</span>
         </div>
 
         <div

@@ -87,7 +87,7 @@ export function saveProject(project) {
     return { ok: true };
   } catch {
     // QuotaExceededError 等
-    return { ok: false, error: '保存に失敗しました(容量超過の可能性)' };
+    return { ok: false, error: '保存できませんでした（このブラウザの保存できる量がいっぱいかもしれません）。' };
   }
 }
 

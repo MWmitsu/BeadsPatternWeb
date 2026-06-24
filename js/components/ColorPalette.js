@@ -40,9 +40,9 @@ export function ColorPalette(props) {
   if (!colors || colors.length === 0) {
     return html`
       <div class="panel palette">
-        <div class="panel__title">色パレット</div>
+        <div class="panel__title">色一覧</div>
         <div class="panel__body">
-          <p class="muted">まだ色がありません。画像を変換するとここに一覧が表示されます。</p>
+          <p class="muted">まだ色がありません。画像を変換すると、ここに色一覧が表示されます。</p>
         </div>
       </div>
     `;
@@ -51,14 +51,14 @@ export function ColorPalette(props) {
   return html`
     <div class="panel palette">
       <div class="panel__title">
-        色パレット
+        色一覧
         <span class="badge">${colors.length}色</span>
         <span class="muted palette__total">総ビーズ ${totalBeads}個</span>
       </div>
       <div class="panel__body">
         <div class="palette__hint">
-          番号や色見本をクリックすると、その色だけを強調表示します（並べる順番の確認に便利）。
-          各行で色の変更（□か色コード）・「この色で塗る」でマスの塗り替え・「別の色とまとめる」もできます。
+          色番号や色見本をクリックすると、その色だけを強調表示します（並べる順番の確認に便利です）。
+          各行では、色の変更（カラーピッカーまたは色コード）、「この色で塗る」でのマスの塗り替え、「別の色とまとめる」もできます。
         </div>
         <div class="palette__list" role="list">
           ${colors.map(
@@ -171,7 +171,7 @@ function PaletteRow(props) {
       <button
         type="button"
         class="palette__id"
-        title=${isHighlighted ? 'ハイライト解除' : 'この色をハイライト'}
+        title=${isHighlighted ? '強調表示をやめる' : 'この色を強調表示'}
         onClick=${toggleHighlight}
       >
         ${color.id}
@@ -181,7 +181,7 @@ function PaletteRow(props) {
         type="button"
         class="palette__swatch swatch"
         style=${`background:${color.hex};color:${fg}`}
-        title=${isHighlighted ? 'ハイライト解除' : 'この色をハイライト'}
+        title=${isHighlighted ? '強調表示をやめる' : 'この色を強調表示'}
         onClick=${toggleHighlight}
       >
         ${isHighlighted ? '●' : ''}
@@ -193,7 +193,7 @@ function PaletteRow(props) {
             type="color"
             class="palette__picker"
             value=${normalizeHex(color.hex)}
-            aria-label=${`色${color.id}の色を選ぶ`}
+            aria-label=${`${color.id}番の色を選ぶ`}
             title="色を選ぶ"
             onChange=${(e) => onEditColor && onEditColor(color.id, { hex: e.target.value.toUpperCase() })}
           />
@@ -203,8 +203,8 @@ function PaletteRow(props) {
             value=${hexInput}
             maxlength="7"
             spellcheck="false"
-            aria-label=${`色${color.id}の色コード`}
-            title="色コード(#RRGGBB)"
+            aria-label=${`${color.id}番の色コード`}
+            title="色コード（#から始まる6桁）"
             onInput=${(e) => setHexInput(e.target.value)}
             onBlur=${commitHex}
             onKeyDown=${(e) => {
@@ -217,7 +217,7 @@ function PaletteRow(props) {
           class="palette__name field"
           list="palette-color-names"
           value=${color.name || ''}
-          aria-label=${`色${color.id}の色名`}
+          aria-label=${`${color.id}番の色名`}
           onBlur=${(e) => commitName(e.target.value)}
           onKeyDown=${(e) => {
             if (e.key === 'Enter') e.target.blur();
@@ -229,14 +229,14 @@ function PaletteRow(props) {
         <span class="palette__count">${color.count}個</span>
         <span class="palette__ratio muted">${formatRatio(color.ratio)}%</span>
         ${bufferPercent > 0
-          ? html`<span class="palette__need muted" title="個数＋予備${bufferPercent}%">必要 ${need}個</span>`
+          ? html`<span class="palette__need muted" title="使用個数＋予備${bufferPercent}%">必要数 ${need}個</span>`
           : null}
       </div>
 
       ${bead &&
       html`
         <div class="palette__bead" title="近い市販ビーズ色（目安）">
-          <span class="muted">近い市販色</span>
+          <span class="muted">近い市販ビーズ色</span>
           <span class="palette__bead-swatch swatch" style=${`background:${bead.hex}`}></span>
           <span class="palette__bead-code">${bead.code}</span>
           <span class="palette__bead-name">${bead.name}</span>
@@ -247,7 +247,7 @@ function PaletteRow(props) {
         <button
           type="button"
           class=${'btn btn--sm ' + (isEditing ? 'btn--primary' : 'btn--ghost')}
-          title="この色でキャンバスを塗る色として選択"
+          title="この色を、図案を塗る色として選ぶ"
           onClick=${toggleEdit}
         >
           ${isEditing ? '塗り中' : 'この色で塗る'}
@@ -260,7 +260,7 @@ function PaletteRow(props) {
             <select
               class="palette__merge-select field"
               value=${mergeTarget}
-              aria-label=${`色${color.id}を別の色とまとめる`}
+              aria-label=${`${color.id}番の色を別の色とまとめる`}
               onChange=${(e) => applyMerge(e.target.value)}
             >
               <option value="">まとめ先を選ぶ…</option>

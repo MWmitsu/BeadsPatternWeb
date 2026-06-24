@@ -31,7 +31,7 @@ export function buildColorsCsv(colors, opts = {}) {
       ? opts.beadPaletteColors
       : null;
 
-  const header = ['番号', 'HEX', '色名', '使用個数', '割合', '必要数'];
+  const header = ['色番号', '色コード', '色名', '使用個数', '割合(%)', '必要数(予備込み)'];
   if (beadPaletteColors) header.push('近い市販色番号', '近い市販色名');
   const lines = [header.map(escapeCsvCell).join(',')];
 
