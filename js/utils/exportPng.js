@@ -12,23 +12,63 @@ function sanitizeName(s) {
   return String(s || '').replace(/[\\/:*?"<>|]/g, '_').trim() || 'beads';
 }
 
+/** Blob/File を a 要素経由でダウンロードする(主にPC用)。 */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // 次のタイミングで URL を解放(クリック処理の完了を待つ)
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 /**
- * canvas を PNG として a 要素経由でダウンロードする。
+ * canvas を PNG として保存する。
+ * iPhone/iPad/Android など(タッチ主体の端末)では、OSの共有シート経由で
+ * 「画像を保存」(カメラロールへ保存)できるよう navigator.share を使う。
+ * PC など(マウス主体)はファイルとしてダウンロードする。
+ * ※ navigator.share はユーザー操作内で呼ぶ必要があるため、ファイルは同期的に作る。
  * @param {HTMLCanvasElement} canvas
  * @param {string} filename 保存ファイル名(.png 込み)
  */
 export function downloadCanvas(canvas, filename) {
+  // 共有用にファイルを「同期的に」作る(toBlobのコールバックを待つとiOSで共有が拒否される)
+  let file = null;
+  try {
+    const dataUrl = canvas.toDataURL('image/png');
+    const bin = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    file = new File([arr], filename, { type: 'image/png' });
+  } catch (_) {
+    file = null;
+  }
+
+  const touchDevice =
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    window.matchMedia('(pointer: coarse)').matches;
+
+  // タッチ端末 & ファイル共有対応 → 共有シート(「画像を保存」でカメラロールへ)
+  if (file && touchDevice && navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+    navigator.share({ files: [file], title: filename }).catch((err) => {
+      // キャンセル(AbortError)は無視。それ以外はダウンロードにフォールバック。
+      if (!err || err.name !== 'AbortError') downloadBlob(file, filename);
+    });
+    return;
+  }
+
+  // PC など: ダウンロード
+  if (file) {
+    downloadBlob(file, filename);
+    return;
+  }
+  // toDataURL に失敗した場合の保険(従来の toBlob 経由)
   canvas.toBlob((blob) => {
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    // 次のタイミングで URL を解放(クリック処理の完了を待つ)
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    if (blob) downloadBlob(blob, filename);
   }, 'image/png');
 }
 

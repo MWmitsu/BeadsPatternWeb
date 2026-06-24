@@ -74,8 +74,11 @@ function inShape(shape, nx, ny) {
     case 'star':
       return pointInPolygon(nx, ny, STAR);
     case 'heart': {
-      const X = nx * 1.15;
-      const Y = -ny * 1.15 + 0.35;
+      // ハート曲線 (X²+Y²-1)³ - X²Y³ ≤ 0 は Y上向き・下が尖り。
+      // 尖り(Y≈-1)〜上の膨らみ(Y≈1.26)が grid(ny∈[-1,1]) に少し余白付きで収まるよう写像する。
+      // (以前は上に寄りすぎて下の尖りが切れていた)
+      const X = nx * 1.25;
+      const Y = -ny * 1.25 + 0.13;
       const t = X * X + Y * Y - 1;
       return t * t * t - X * X * Y * Y * Y <= 0;
     }
