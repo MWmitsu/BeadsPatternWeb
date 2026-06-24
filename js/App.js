@@ -1065,7 +1065,8 @@ export function App() {
   const doneCount = doneSet.size;
   const plateMask = useMemo(
     () =>
-      pattern && settings.plateShape && settings.plateShape !== 'square'
+      // 「台座なし(none)」「正方形(square)」は形の制限なし → マスク無し(空ペグも描かない)
+      pattern && settings.plateShape && settings.plateShape !== 'square' && settings.plateShape !== 'none'
         ? makePlateMask(settings.plateShape, pattern.width, pattern.height)
         : null,
     [settings.plateShape, pattern ? pattern.width : 0, pattern ? pattern.height : 0]
