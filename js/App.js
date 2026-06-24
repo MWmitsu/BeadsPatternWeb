@@ -310,6 +310,17 @@ export function App() {
     }
     // 読み込んだら即変換して結果を見せる(設定を変えれば再変換できる)
     convertWith(payload.image);
+
+    // 画像とビーズ(グリッド)の縦横比が違うときは、切り抜きモードなら
+    // 「範囲を調整」(切り抜き)を自動で開いて、使う範囲を選んでもらう。
+    const iw = payload.image.naturalWidth || payload.width || 1;
+    const ih = payload.image.naturalHeight || payload.height || 1;
+    const gridAR = (settings.width || 1) / (settings.height || 1);
+    const imgAR = iw / (ih || 1);
+    const ratioMismatch = Math.abs(imgAR - gridAR) > 0.04 * gridAR;
+    if ((settings.fitMode || 'crop') === 'crop' && ratioMismatch) {
+      setCropOpen(true);
+    }
   };
 
   // サンプル画像で試す(その場で簡単な絵を生成して読み込む)
