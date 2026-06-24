@@ -7,7 +7,7 @@
 // mergeStrength を選ぶと detection.colorDistanceThreshold を追従させる。
 // ============================================================
 
-import { html } from '../lib/html.js';
+import { html, useState, useEffect } from '../lib/html.js';
 import { MAX_COLOR_OPTIONS, MERGE_STRENGTH_THRESHOLD, FIT_MODES } from '../types.js';
 import { PLATE_SHAPES } from '../utils/plateShape.js';
 
@@ -45,6 +45,27 @@ export function SettingsPanel(props) {
     return Number.isFinite(n) ? n : fallback;
   };
 
+  // 横/縦ビーズ数は入力中に空にできるよう、表示用テキストをローカルに保持する。
+  // (type=number の制御値だと iPhone で消したとき即 0 になり「0 が残る」不具合になるため)
+  const [widthText, setWidthText] = useState(String(settings.width));
+  const [heightText, setHeightText] = useState(String(settings.height));
+  useEffect(() => { setWidthText(String(settings.width)); }, [settings.width]);
+  useEffect(() => { setHeightText(String(settings.height)); }, [settings.height]);
+
+  const clampDim = (n) => Math.max(1, Math.min(400, Math.floor(n)));
+  const onDimInput = (key, raw, setText) => {
+    setText(raw);
+    if (raw === '') return; // 空のあいだは確定しない(0 を残さない)
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 1) patch({ [key]: clampDim(n) });
+  };
+  const onDimBlur = (key, raw, setText) => {
+    const n = Number(raw);
+    const v = Number.isFinite(n) && n >= 1 ? clampDim(n) : 1; // 空や0で離れたら最小1へ
+    setText(String(v));
+    if (v !== settings[key]) patch({ [key]: v });
+  };
+
   const handleMergeStrengthChange = (strength) => {
     onChange({
       ...settings,
@@ -68,10 +89,12 @@ export function SettingsPanel(props) {
               id="settings-width"
               class="settings__input"
               type="number"
+              inputmode="numeric"
               min="1"
-              max="200"
-              value=${settings.width}
-              onInput=${(e) => patch({ width: toNumber(e.target.value, settings.width) })}
+              max="400"
+              value=${widthText}
+              onInput=${(e) => onDimInput('width', e.target.value, setWidthText)}
+              onBlur=${(e) => onDimBlur('width', e.target.value, setWidthText)}
             />
           </div>
         </div>
@@ -83,10 +106,12 @@ export function SettingsPanel(props) {
               id="settings-height"
               class="settings__input"
               type="number"
+              inputmode="numeric"
               min="1"
-              max="200"
-              value=${settings.height}
-              onInput=${(e) => patch({ height: toNumber(e.target.value, settings.height) })}
+              max="400"
+              value=${heightText}
+              onInput=${(e) => onDimInput('height', e.target.value, setHeightText)}
+              onBlur=${(e) => onDimBlur('height', e.target.value, setHeightText)}
             />
           </div>
         </div>

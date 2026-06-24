@@ -195,7 +195,7 @@ export function App() {
   const [settings, setSettings] = useState(freshSettings);
 
   // ---- 表示 ----
-  const [viewMode, setViewMode] = useState('finished');
+  const [viewMode, setViewMode] = useState('numbers');
   const [cellSize, setCellSize] = useState(12);
   const [highlightColorId, setHighlightColorId] = useState(null);
   const [editColorId, setEditColorId] = useState(null);
@@ -268,7 +268,7 @@ export function App() {
         setMirrorY(false);
         setActiveTool('pen');
         clearHistory();
-        setViewMode('finished');
+        setViewMode('numbers');
         // 画面幅に収まるセルサイズへ自動フィット(スマホでは小さめ)
         setCellSize(autoFitCellSize(result.width));
         // スマホでは結果が設定群の下に隠れるため、変換後にプレビューへスクロール
@@ -586,7 +586,7 @@ export function App() {
   const handleHighlight = (colorId) => {
     setHighlightColorId(colorId);
     if (colorId != null) setViewMode('highlight');
-    else if (viewMode === 'highlight') setViewMode('finished');
+    else if (viewMode === 'highlight') setViewMode('numbers');
   };
 
   // ---- 作業チェック(ドラッグ対応) ----
@@ -711,12 +711,25 @@ export function App() {
       return;
     }
     const url = location.origin + location.pathname + '#' + SHARE_HASH_KEY + '=' + data;
-    const ok = () => flash('共有リンクをコピーしました。メールやSNSに貼り付けて送れます。');
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(ok).catch(() => window.prompt('このリンクをコピーしてください', url));
-    } else {
-      window.prompt('このリンクをコピーしてください', url);
+    const copyToClipboard = () => {
+      const ok = () => flash('共有リンクをコピーしました。メールやSNSに貼り付けて送れます。');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(ok).catch(() => window.prompt('このリンクをコピーしてください', url));
+      } else {
+        window.prompt('このリンクをコピーしてください', url);
+      }
+    };
+    // iPhone等ではOSの共有シートを開く(LINE/メッセージ/メール/AirDrop等へ送れる)。
+    // 非対応(主にPCブラウザ)ならクリップボードにコピー。
+    if (navigator.share) {
+      navigator
+        .share({ title: title || 'アイロンビーズ図案', text: 'アイロンビーズ図案を共有します', url })
+        .catch((err) => {
+          if (!err || err.name !== 'AbortError') copyToClipboard();
+        });
+      return;
     }
+    copyToClipboard();
   };
 
   // ---- 共有データ(URLハッシュ)を図案へ復元 ----
@@ -769,7 +782,7 @@ export function App() {
     setMirrorY(false);
     setActiveTool('pen');
     clearHistory();
-    setViewMode('finished');
+    setViewMode('numbers');
     setCellSize(autoFitCellSize(width));
   };
 
@@ -943,7 +956,12 @@ export function App() {
         totalBeads,
         backgroundCount: obj.width * obj.height - totalBeads,
       });
-      setSettings(obj.settings ? { ...freshSettings(), ...obj.settings } : freshSettings());
+      // 復元する設定の横/縦は1〜400へ丸める(過去の不具合で0が保存されていても安全に直す)
+      setSettings(
+        obj.settings
+          ? { ...freshSettings(), ...obj.settings, width: clampDim(obj.settings.width), height: clampDim(obj.settings.height) }
+          : freshSettings()
+      );
       setTitle(obj.title || '無題の図案');
       setCurrentId(obj.id || null);
       if (obj.id) draftIdRef.current = obj.id;
@@ -969,7 +987,7 @@ export function App() {
       setMirrorY(false);
       setActiveTool('pen');
       clearHistory();
-      setViewMode('finished');
+      setViewMode('numbers');
       setCellSize(autoFitCellSize(obj.width));
       setError(null);
     } catch (e) {

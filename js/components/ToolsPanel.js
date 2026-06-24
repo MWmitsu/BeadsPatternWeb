@@ -176,10 +176,11 @@ export function ToolsPanel(props) {
               class="btn btn--sm"
               disabled=${disabled}
               onClick=${() => onShareLink && onShareLink()}
-            >共有リンクをコピー</button>
+            >リンクを共有</button>
           </div>
           <p class="field__hint muted">
-            「共有リンク」は図案をリンクの中に埋め込みます（準備なしで使えます）。受け取った人が開くとそのまま表示されます。
+            スマホでは「共有」を押すとLINE・メッセージ・メールなどの共有メニューが開きます（パソコンではコピーします）。
+            リンクには図案が埋め込まれており（準備なしで使えます）、受け取った人が開くとそのまま表示されます。
           </p>
         </div>
 
