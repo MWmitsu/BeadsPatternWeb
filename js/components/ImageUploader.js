@@ -19,12 +19,19 @@ import { loadImageFile, fileToDataUrl } from '../utils/imageLoader.js';
  * @param {(message: string) => void} props.onError  読込失敗時のメッセージ通知
  */
 export function ImageUploader(props) {
-  const { onImage, originalUrl, sourceImageName, onError, onSample } = props;
+  const { onImage, originalUrl, sourceImageName, onError, onSample, onTextToImage } = props;
 
   // 非表示の <input type="file"> を参照(ドロップ領域クリックで開く)
   const inputRef = useRef(null);
   // ドラッグ中かどうか(枠線の強調表示に使用)
   const [dragover, setDragover] = useState(false);
+  // 「文字から作る」の入力テキスト
+  const [textInput, setTextInput] = useState('');
+
+  const submitText = () => {
+    const t = textInput.trim();
+    if (t && onTextToImage) onTextToImage(t);
+  };
 
   /**
    * 受け取った File を検証読込し、成功すれば onImage、失敗すれば onError を呼ぶ。
@@ -163,6 +170,31 @@ export function ImageUploader(props) {
             >
               サンプルで試す
             </button>
+          </div>
+        `}
+
+        ${onTextToImage &&
+        html`
+          <div class="uploader__text">
+            <div class="uploader__text-label muted">または 文字・名前から作る</div>
+            <div class="uploader__text-row">
+              <input
+                type="text"
+                class="uploader__text-input field"
+                placeholder="例: あい / LOVE"
+                value=${textInput}
+                onInput=${(e) => setTextInput(e.target.value)}
+                onKeyDown=${(e) => { if (e.key === 'Enter') { e.preventDefault(); submitText(); } }}
+              />
+              <button
+                type="button"
+                class="btn btn--sm uploader__text-btn"
+                disabled=${!textInput.trim()}
+                onClick=${submitText}
+              >
+                文字から作る
+              </button>
+            </div>
           </div>
         `}
       </div>

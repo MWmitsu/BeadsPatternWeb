@@ -100,6 +100,37 @@ function downscaleImageToDataUrl(img, maxEdge) {
 }
 
 /**
+ * 文字・名前を「濃い文字 + 透明背景」のPNGデータURLにする。
+ * 背景の扱いで「白として扱う＝文字＋白地」「透明として扱う＝文字だけ」を選べる。
+ */
+function renderTextToDataUrl(text, opts = {}) {
+  const lines = String(text).split('\n').slice(0, 6).map((s) => s || ' ');
+  const fontSize = 120;
+  const family = 'system-ui, "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
+  const font = `bold ${fontSize}px ${family}`;
+  const mctx = document.createElement('canvas').getContext('2d');
+  mctx.font = font;
+  let maxW = 1;
+  for (const ln of lines) maxW = Math.max(maxW, mctx.measureText(ln).width);
+  const lineH = fontSize * 1.2;
+  const padX = fontSize * 0.28;
+  const padY = fontSize * 0.18;
+  const W = Math.ceil(maxW + padX * 2);
+  const H = Math.ceil(lineH * lines.length + padY * 2);
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H); // 透明背景
+  ctx.fillStyle = opts.color || '#1f1f1f';
+  ctx.font = font;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  lines.forEach((ln, i) => ctx.fillText(ln, W / 2, padY + lineH * (i + 0.5)));
+  return c.toDataURL('image/png');
+}
+
+/**
  * cells から各色の count / ratio を再計算する(id は変えず、全色を残す)。
  * マス塗りや HEX/色名編集など「採番を変えたくない」編集で使う。
  */
@@ -352,6 +383,43 @@ export function App() {
       img.src = url;
     } catch (e) {
       setError('サンプル画像の生成に失敗しました。');
+    }
+  };
+
+  // 文字・名前から図案を作る(文字を画像化→グリッドを比率に合わせて変換)
+  const handleTextToImage = (text) => {
+    const t = String(text || '').trim();
+    if (!t) { setError('文字を入力してください。'); return; }
+    try {
+      const dataUrl = renderTextToDataUrl(t);
+      const img = new Image();
+      img.onload = () => {
+        // グリッドを文字の縦横比に合わせる(長辺=48マス目安)
+        const ar = (img.naturalWidth || 1) / (img.naturalHeight || 1);
+        const LONG = 48;
+        let gw, gh;
+        if (ar >= 1) { gw = LONG; gh = Math.max(8, Math.round(LONG / ar)); }
+        else { gh = LONG; gw = Math.max(8, Math.round(LONG * ar)); }
+        // 文字は「文字だけ(透明背景)」を既定にする。背景の扱いで白地にも切替可。
+        const next = {
+          ...settings,
+          width: clampDim(gw),
+          height: clampDim(gh),
+          fitMode: 'contain',
+          backgroundAsWhite: false,
+          removeBackground: false,
+        };
+        setSettings(next);
+        setImage(img);
+        setOriginalUrl(dataUrl);
+        setSourceImageName('文字「' + t.slice(0, 16) + '」');
+        if (!title || title === '無題の図案') setTitle(t.slice(0, 20));
+        convertWith(img, next);
+      };
+      img.onerror = () => setError('文字の図案化に失敗しました。');
+      img.src = dataUrl;
+    } catch (e) {
+      setError('文字の図案化に失敗しました。');
     }
   };
 
@@ -1146,6 +1214,7 @@ export function App() {
             sourceImageName=${sourceImageName}
             onError=${setError}
             onSample=${handleSample}
+            onTextToImage=${handleTextToImage}
           />
           <${SettingsPanel}
             settings=${settings}

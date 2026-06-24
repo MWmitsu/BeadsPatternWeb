@@ -738,6 +738,11 @@ input.warn--error {
 .help__steps li { margin: 4px 0; }
 
 .uploader__actions { margin-top: 10px; text-align: center; }
+.uploader__text { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.uploader__text-label { font-size: 0.82em; margin-bottom: 5px; }
+.uploader__text-row { display: flex; gap: 6px; }
+.uploader__text-input { flex: 1 1 auto; min-width: 0; }
+.uploader__text-btn { white-space: nowrap; flex: 0 0 auto; }
 
 .settings__fit { flex-wrap: wrap; gap: 8px 14px; justify-content: flex-start; }
 .settings__crop-btn { margin-top: 8px; }

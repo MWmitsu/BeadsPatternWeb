@@ -96,11 +96,24 @@ export function drawPattern(ctx, pattern, opts = {}) {
     // 2桁でもマスに収まるよう fillText の maxWidth で自動縮小する。
     if (showNumbers && cellSize >= 7 && !isDim) {
       const { r, g, b } = hexToRgb(hex);
-      ctx.fillStyle = textColorForRgb(r, g, b);
+      const fg = textColorForRgb(r, g, b);
       ctx.font = `${Math.max(6, Math.floor(cellSize * 0.6))}px system-ui, -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(String(cell.colorId), px + cellSize / 2, py + cellSize / 2 + 0.5, cellSize - 1.5);
+      const s = String(cell.colorId);
+      const tx = px + cellSize / 2;
+      const ty = py + cellSize / 2 + 0.5;
+      const mw = cellSize - 1.5;
+      // 読みやすさ: どの色の上でもくっきり見えるよう、反対色のうすい縁取り(ハロー)を付ける
+      if (cellSize >= 10) {
+        const fgLight = parseInt(fg.slice(1, 3), 16) > 128;
+        ctx.lineWidth = Math.max(1.5, cellSize * 0.16);
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = fgLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.78)';
+        ctx.strokeText(s, tx, ty, mw);
+      }
+      ctx.fillStyle = fg;
+      ctx.fillText(s, tx, ty, mw);
     }
 
     // --- 作業済みチェック(白く覆ってチェックマーク) ---
