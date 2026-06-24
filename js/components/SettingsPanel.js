@@ -8,7 +8,7 @@
 // ============================================================
 
 import { html } from '../lib/html.js';
-import { MAX_COLOR_OPTIONS, MERGE_STRENGTH_THRESHOLD, FIT_MODES, THEME_COLORS } from '../types.js';
+import { MAX_COLOR_OPTIONS, MERGE_STRENGTH_THRESHOLD, FIT_MODES } from '../types.js';
 import { PLATE_SHAPES } from '../utils/plateShape.js';
 
 /**
@@ -30,8 +30,6 @@ export function SettingsPanel(props) {
     canConvert = false,
     canCrop = false,
     onOpenCrop,
-    themeColor = '',
-    onThemeChange,
     warnings = [],
   } = props;
 
@@ -218,25 +216,6 @@ export function SettingsPanel(props) {
           <summary class="settings__advanced-summary">詳しい設定（ふだんは触らなくてOK）</summary>
 
           <h3 class="settings__group-title">見た目・台座</h3>
-
-          <div class="field">
-            <span class="field__label">テーマカラー</span>
-            <div class="field__row theme-swatches">
-              ${THEME_COLORS.map(
-                (t) => html`
-                  <button
-                    type="button"
-                    key=${t.accent}
-                    class=${'theme-swatch' + ((themeColor || '') === t.accent ? ' theme-swatch--active' : '')}
-                    style=${`background:${t.accent}`}
-                    title=${t.name}
-                    aria-label=${t.name}
-                    onClick=${() => onThemeChange && onThemeChange(t.accent)}
-                  ></button>
-                `
-              )}
-            </div>
-          </div>
 
           <div class="field">
             <div class="field__row">

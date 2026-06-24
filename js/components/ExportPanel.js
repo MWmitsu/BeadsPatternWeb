@@ -42,17 +42,16 @@ export function ExportPanel(props) {
     disabled,
     bufferPercent = 0,
     beadPaletteColors = null,
-    round = false,
-    plateMask = null,
   } = props;
 
   // 隠しファイル入力(JSON読込用)への参照
   const fileInputRef = useRef(null);
 
-  // 完成イメージPNGを保存(グリッド無し)
+  // 完成イメージPNGを保存(グリッド無し)。
+  // 完成イメージは「丸ビーズ風」や空ペグ点を含めず、ベタ塗りのクリアな画像にする。
   function handleExportFinished() {
     if (!pattern) return;
-    exportFinishedPng(pattern, { showGrid: false, round, plateMask });
+    exportFinishedPng(pattern, { showGrid: false });
   }
 
   // 数字付き設計図PNGを保存

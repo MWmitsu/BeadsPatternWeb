@@ -943,21 +943,6 @@ input.warn--error {
 }
 .beadlist__foot-note { font-size: 0.78em; margin-right: auto; }
 
-/* テーマカラーのスウォッチ */
-.theme-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
-.theme-swatch {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 2px solid var(--border);
-  cursor: pointer;
-  padding: 0;
-}
-.theme-swatch--active {
-  border-color: var(--text);
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
-}
-
 /* 印刷: 分割の操作と区画 */
 .print-controls__opt {
   display: inline-flex;

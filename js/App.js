@@ -12,7 +12,7 @@ import {
   WARN,
   BACKGROUND_COLOR_ID,
 } from './types.js';
-import { hexToRgb, rgbToHex } from './utils/colorDistance.js';
+import { hexToRgb } from './utils/colorDistance.js';
 import { estimateColorNameFromHex } from './utils/colorName.js';
 import { pixelateToImageData } from './utils/pixelateImage.js';
 import { detectBeadPattern, recountColors } from './utils/colorDetection.js';
@@ -618,12 +618,11 @@ export function App() {
       setError('共有する図案がありません。');
       return;
     }
+    // 共有/出力用の完成イメージは「丸ビーズ風」や空ペグ点を含めず、ベタ塗りのクリアな画像にする
     const canvas = renderPatternToCanvas(pattern, {
       cellSize: 12,
       showGrid: false,
       showNumbers: false,
-      round: settings.roundBeads,
-      plateMask,
     });
     canvas.toBlob((blob) => {
       if (!blob) return;
@@ -775,17 +774,6 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  // テーマ(アクセント)カラーを CSS 変数へ反映
-  useEffect(() => {
-    const hex = settings.themeColor || '#2b8a78';
-    const { r, g, b } = hexToRgb(hex);
-    const lighten = (t) => rgbToHex(r + (255 - r) * t, g + (255 - g) * t, b + (255 - b) * t);
-    const root = document.documentElement.style;
-    root.setProperty('--accent', hex);
-    root.setProperty('--accent-strong', rgbToHex(r * 0.82, g * 0.82, b * 0.82));
-    root.setProperty('--accent-weak', lighten(0.86));
-  }, [settings.themeColor]);
-
   // プレート形状を変えたら現在の図案にマスクを適用する(手動編集は保持・Undo可)。
   // 元画像からきれいに作り直したい場合は「画像から変換」を押す。
   useEffect(() => {
@@ -811,8 +799,6 @@ export function App() {
           cellSize: cs,
           showGrid: false,
           showNumbers: false,
-          round: settings.roundBeads,
-          plateMask,
         }).toDataURL('image/png');
       } catch (_) {
         /* サムネ生成失敗は無視 */
@@ -1030,8 +1016,6 @@ export function App() {
             canConvert=${!!image}
             canCrop=${!!image}
             onOpenCrop=${openCrop}
-            themeColor=${settings.themeColor}
-            onThemeChange=${(hex) => setSettings({ ...settings, themeColor: hex })}
             warnings=${warnings}
           />
           <${ExportPanel}
@@ -1044,8 +1028,6 @@ export function App() {
             disabled=${!pattern}
             bufferPercent=${settings.bufferPercent}
             beadPaletteColors=${beadPaletteColors}
-            round=${settings.roundBeads}
-            plateMask=${plateMask}
           />
           <${ProjectList}
             projects=${projects}
@@ -1182,8 +1164,6 @@ export function App() {
           onClose=${() => setPrinting(false)}
           bufferPercent=${settings.bufferPercent}
           beadPaletteColors=${beadPaletteColors}
-          round=${settings.roundBeads}
-          plateMask=${plateMask}
         />
       `}
 
