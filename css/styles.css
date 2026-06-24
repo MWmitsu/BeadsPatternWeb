@@ -435,13 +435,25 @@ input.warn--error {
 }
 .bead-canvas--fullscreen .bead-canvas__toolbar { flex: 0 0 auto; }
 .bead-canvas--fullscreen .bead-canvas__draghint { flex: 0 0 auto; }
-.bead-canvas--fullscreen .bead-canvas__stage,
+.bead-canvas--fullscreen .bead-canvas__tools { flex: 0 0 auto; }
+.bead-canvas--fullscreen .bead-canvas__stage {
+  flex: 1 1 auto;
+  max-height: none;
+  overflow: hidden;
+  display: block;
+  position: relative;
+  background: var(--surface-2);
+}
 .bead-canvas--fullscreen .bead-canvas__compare {
   flex: 1 1 auto;
   max-height: none;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  overflow: auto;
+}
+/* 全画面のキャンバスは transform でズーム/パン。タッチはジェスチャに使う。 */
+.bead-canvas--fullscreen .bead-canvas__canvas {
+  touch-action: none;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 .bead-canvas__full { white-space: nowrap; }
 

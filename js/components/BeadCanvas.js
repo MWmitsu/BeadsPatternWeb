@@ -1,11 +1,13 @@
 // ============================================================
 // BeadCanvas: 図案を <canvas> に描画する中核プレビュー(iPad/タッチ対応)
 // ------------------------------------------------------------
-// - drawPattern で描画。viewMode で表示切替。Pointer Events でドラッグ操作。
+// - drawPattern で描画。viewMode で表示切替。Pointer Events で操作。
 // - 編集ツール: ペン / 消しゴム(背景化) / スポイト(色抽出) / ぬりつぶし(バケツ)。
 //   ドラッグはBresenham直線補間で抜けなし。Undo/Redo・左右上下ミラーに対応。
 // - 作業チェック(消し込み)モードも同じドラッグ操作。
-// - 全画面モード(CSSオーバーレイ。iPad Safariの要素フルスクリーンAPI非対応のため独自実装)。
+// - 全画面モード(CSSオーバーレイ)では複数ポインタを追跡し、
+//   1本指=描画/作業・パン、2本指=ピンチズーム＆移動(CSS transform)。
+//   ※ iPad Safari は要素フルスクリーンAPI非対応のため独自オーバーレイ。
 // ============================================================
 
 import { html, useRef, useEffect, useState } from '../lib/html.js';
@@ -14,6 +16,8 @@ import { drawPattern } from '../lib/renderPattern.js';
 const MIN_CELL_SIZE = 2;
 const MAX_CELL_SIZE = 48;
 const ZOOM_STEP = 2;
+const MIN_SCALE = 0.2;
+const MAX_SCALE = 8;
 
 const TOOLS = [
   { k: 'pen', label: 'ペン', icon: '✏️' },
@@ -57,6 +61,10 @@ function lineCells(a, b) {
   return cells;
 }
 
+const distOf = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const midOf = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+const clampScale = (s) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
+
 export function BeadCanvas(props) {
   const {
     pattern,
@@ -92,10 +100,15 @@ export function BeadCanvas(props) {
 
   const canvasRef = useRef(null);
   const stageRef = useRef(null);
-  const dragRef = useRef(null);
+  const dragRef = useRef(null); // 描画/作業ドラッグ
+  const pointersRef = useRef(new Map()); // pointerId -> {x,y}(画面座標)
+  const gestureRef = useRef(null); // 2本指ジェスチャの開始状態
+  const panRef = useRef(null); // 1本指パン
   const [fullscreen, setFullscreen] = useState(false);
+  const [view, setView] = useState({ scale: 1, tx: 0, ty: 0 }); // 全画面の表示変換
 
   const interactive = editingEnabled || checkMode;
+  const pointerActive = interactive || fullscreen; // 全画面は非編集でもパン/ズーム可
   const doneCount = doneSet ? doneSet.size : 0;
   const donePct = totalBeads > 0 ? Math.round((doneCount / totalBeads) * 100) : 0;
 
@@ -110,16 +123,40 @@ export function BeadCanvas(props) {
     drawPattern(ctx, pattern, { ...opts, cellSize: cs, doneSet });
   }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, cellSize, doneSet]);
 
-  // ---- ズーム ----
+  // ---- 表示変換(全画面) ----
+  const viewportRect = () => (stageRef.current ? stageRef.current.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 });
+  const resetView = () => setView({ scale: 1, tx: 0, ty: 0 });
+
   const clampCell = (v) => Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, v));
-  const zoomIn = () => onCellSizeChange && onCellSizeChange(clampCell(cellSize + ZOOM_STEP));
-  const zoomOut = () => onCellSizeChange && onCellSizeChange(clampCell(cellSize - ZOOM_STEP));
   const doFit = () => {
+    if (fullscreen) resetView();
     if (!onCellSizeChange || !pattern || !stageRef.current) return;
     const avail = stageRef.current.clientWidth - 12;
     onCellSizeChange(clampCell(Math.floor(avail / pattern.width)));
   };
+  // 中心基準で view.scale を倍率変更
+  const zoomBy = (factor) => {
+    const vp = viewportRect();
+    const cx = vp.width / 2;
+    const cy = vp.height / 2;
+    setView((v) => {
+      const s1 = clampScale(v.scale * factor);
+      const r = s1 / v.scale;
+      return { scale: s1, tx: cx - r * (cx - v.tx), ty: cy - r * (cy - v.ty) };
+    });
+  };
+  const zoomIn = () => {
+    if (fullscreen) zoomBy(1.25);
+    else onCellSizeChange && onCellSizeChange(clampCell(cellSize + ZOOM_STEP));
+  };
+  const zoomOut = () => {
+    if (fullscreen) zoomBy(0.8);
+    else onCellSizeChange && onCellSizeChange(clampCell(cellSize - ZOOM_STEP));
+  };
+
+  // 全画面に入ったら view をリセットして表示幅に合わせる
   useEffect(() => {
+    resetView();
     if (!fullscreen) return;
     const id = setTimeout(doFit, 90);
     return () => clearTimeout(id);
@@ -130,7 +167,7 @@ export function BeadCanvas(props) {
   const cellFromEvent = (e) => {
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return null;
-    const rect = canvas.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect(); // transform 後の矩形
     const sx = canvas.width / rect.width;
     const sy = canvas.height / rect.height;
     const x = Math.floor(((e.clientX - rect.left) * sx) / cellSize);
@@ -139,50 +176,95 @@ export function BeadCanvas(props) {
     return { x, y };
   };
 
+  const startGesture = () => {
+    const pts = [...pointersRef.current.values()];
+    if (pts.length < 2) return;
+    dragRef.current = null; // 描画を中断
+    panRef.current = null;
+    gestureRef.current = {
+      scale0: view.scale, tx0: view.tx, ty0: view.ty,
+      mid0: midOf(pts[0], pts[1]), dist0: distOf(pts[0], pts[1]) || 1,
+      vp: viewportRect(),
+    };
+  };
+  const updateGesture = () => {
+    const g = gestureRef.current;
+    if (!g) return;
+    const pts = [...pointersRef.current.values()];
+    if (pts.length < 2) return;
+    const m1 = midOf(pts[0], pts[1]);
+    const d1 = distOf(pts[0], pts[1]);
+    const s1 = clampScale(g.scale0 * (d1 / g.dist0));
+    // 開始時の中点の下にあったコンテンツ点を、現在の中点へ合わせる
+    const cx = (g.mid0.x - g.vp.left - g.tx0) / g.scale0;
+    const cy = (g.mid0.y - g.vp.top - g.ty0) / g.scale0;
+    setView({ scale: s1, tx: m1.x - g.vp.left - s1 * cx, ty: m1.y - g.vp.top - s1 * cy });
+  };
+
   const onPointerDown = (e) => {
-    if (!interactive || !pattern) return;
-    const cell = cellFromEvent(e);
-    if (!cell) return;
-    e.preventDefault();
+    if (!pattern) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (canvasRef.current.setPointerCapture) {
       try { canvasRef.current.setPointerCapture(e.pointerId); } catch (_) {}
     }
-    if (checkMode) {
-      const idx = cell.y * pattern.width + cell.x;
-      dragRef.current = { type: 'check', markDone: !(doneSet && doneSet.has(idx)), last: cell };
-      onSetDone && onSetDone([cell], dragRef.current.markDone);
+    // 全画面で2本指 → ピンチ/パン
+    if (fullscreen && pointersRef.current.size >= 2) {
+      e.preventDefault();
+      startGesture();
       return;
     }
-    // 描画ツール
-    if (activeTool === 'eyedropper') {
-      onEyedrop && onEyedrop(cell.x, cell.y);
-      dragRef.current = null;
-      return;
+    // 1本指: 描画/作業 か、(全画面・非編集なら)パン
+    if (interactive) {
+      const cell = cellFromEvent(e);
+      if (!cell) return;
+      e.preventDefault();
+      if (checkMode) {
+        const idx = cell.y * pattern.width + cell.x;
+        dragRef.current = { type: 'check', markDone: !(doneSet && doneSet.has(idx)), last: cell };
+        onSetDone && onSetDone([cell], dragRef.current.markDone);
+        return;
+      }
+      if (activeTool === 'eyedropper') { onEyedrop && onEyedrop(cell.x, cell.y); dragRef.current = null; return; }
+      onStrokeBegin && onStrokeBegin();
+      if (activeTool === 'bucket') { onBucket && onBucket(cell.x, cell.y); dragRef.current = null; return; }
+      const erase = activeTool === 'eraser';
+      dragRef.current = { type: 'draw', erase, last: cell };
+      onDraw && onDraw([cell], erase);
+    } else if (fullscreen) {
+      e.preventDefault();
+      panRef.current = { last: { x: e.clientX, y: e.clientY } };
     }
-    onStrokeBegin && onStrokeBegin();
-    if (activeTool === 'bucket') {
-      onBucket && onBucket(cell.x, cell.y);
-      dragRef.current = null;
-      return;
-    }
-    const erase = activeTool === 'eraser';
-    dragRef.current = { type: 'draw', erase, last: cell };
-    onDraw && onDraw([cell], erase);
   };
 
   const onPointerMove = (e) => {
+    if (pointersRef.current.has(e.pointerId)) {
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    if (gestureRef.current) { updateGesture(); return; }
     const d = dragRef.current;
-    if (!d) return;
-    const cell = cellFromEvent(e);
-    if (!cell) return;
-    if (cell.x === d.last.x && cell.y === d.last.y) return;
-    const line = lineCells(d.last, cell);
-    if (d.type === 'check') onSetDone && onSetDone(line, d.markDone);
-    else if (d.type === 'draw') onDraw && onDraw(line, d.erase);
-    d.last = cell;
+    if (d) {
+      const cell = cellFromEvent(e);
+      if (!cell) return;
+      if (cell.x === d.last.x && cell.y === d.last.y) return;
+      const line = lineCells(d.last, cell);
+      if (d.type === 'check') onSetDone && onSetDone(line, d.markDone);
+      else if (d.type === 'draw') onDraw && onDraw(line, d.erase);
+      d.last = cell;
+      return;
+    }
+    if (panRef.current) {
+      const dx = e.clientX - panRef.current.last.x;
+      const dy = e.clientY - panRef.current.last.y;
+      panRef.current.last = { x: e.clientX, y: e.clientY };
+      setView((v) => ({ ...v, tx: v.tx + dx, ty: v.ty + dy }));
+    }
   };
 
-  const endDrag = () => { dragRef.current = null; };
+  const onPointerUp = (e) => {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) gestureRef.current = null;
+    if (pointersRef.current.size === 0) { dragRef.current = null; panRef.current = null; }
+  };
 
   // ---- プレースホルダ ----
   if (!pattern) {
@@ -200,16 +282,20 @@ export function BeadCanvas(props) {
   const curColor = editingEnabled ? pattern.colors.find((c) => c.id === editColorId) : null;
   const canvasClass = 'bead-canvas__canvas' + (interactive ? ' bead-canvas__canvas--editing' : '');
   const rootClass = 'bead-canvas' + (fullscreen ? ' bead-canvas--fullscreen' : '');
+  const canvasStyle = fullscreen
+    ? `transform: translate(${view.tx}px, ${view.ty}px) scale(${view.scale})`
+    : null;
 
   const canvasEl = html`
     <canvas
       ref=${canvasRef}
       class=${canvasClass}
-      onPointerDown=${interactive ? onPointerDown : null}
-      onPointerMove=${interactive ? onPointerMove : null}
-      onPointerUp=${interactive ? endDrag : null}
-      onPointerCancel=${interactive ? endDrag : null}
-      onPointerLeave=${interactive ? endDrag : null}
+      style=${canvasStyle}
+      onPointerDown=${pointerActive ? onPointerDown : null}
+      onPointerMove=${pointerActive ? onPointerMove : null}
+      onPointerUp=${pointerActive ? onPointerUp : null}
+      onPointerCancel=${pointerActive ? onPointerUp : null}
+      onPointerLeave=${pointerActive ? onPointerUp : null}
     ></canvas>
   `;
 
@@ -223,10 +309,10 @@ export function BeadCanvas(props) {
             onClick=${onRedo} disabled=${!canRedo} aria-label="やり直し" title="やり直し (Ctrl+Y)">↪︎</button>
           <span class="bead-canvas__sep"></span>
           <button type="button" class="btn btn--ghost btn--sm bead-canvas__zoom-btn"
-            onClick=${zoomOut} disabled=${cellSize <= MIN_CELL_SIZE} aria-label="縮小">−</button>
-          <span class="bead-canvas__zoom-value">${cellSize}px</span>
+            onClick=${zoomOut} disabled=${!fullscreen && cellSize <= MIN_CELL_SIZE} aria-label="縮小">−</button>
+          <span class="bead-canvas__zoom-value">${fullscreen ? Math.round(view.scale * 100) + '%' : cellSize + 'px'}</span>
           <button type="button" class="btn btn--ghost btn--sm bead-canvas__zoom-btn"
-            onClick=${zoomIn} disabled=${cellSize >= MAX_CELL_SIZE} aria-label="拡大">＋</button>
+            onClick=${zoomIn} disabled=${!fullscreen && cellSize >= MAX_CELL_SIZE} aria-label="拡大">＋</button>
           <button type="button" class="btn btn--ghost btn--sm bead-canvas__zoom-fit" onClick=${doFit}>フィット</button>
           <button type="button" class="btn btn--ghost btn--sm bead-canvas__full"
             onClick=${() => setFullscreen((v) => !v)}>${fullscreen ? '✕ 閉じる' : '⛶ 全画面'}</button>
@@ -265,15 +351,19 @@ export function BeadCanvas(props) {
           `
         : null}
 
-      ${interactive
+      ${interactive || fullscreen
         ? html`<div class="bead-canvas__draghint muted">
-            ${checkMode
-              ? 'ドラッグでまとめてチェック／解除できます。'
-              : activeTool === 'eyedropper'
-              ? 'マスをタップでその色を取得します。'
-              : activeTool === 'bucket'
-              ? 'タップで同じ色のつながった範囲を塗りつぶします。'
-              : 'ドラッグでまとめて' + (activeTool === 'eraser' ? '消せます' : '塗れます') + '。'}
+            ${fullscreen ? '2本指でズーム・移動。' : ''}${
+              checkMode
+                ? '1本指のドラッグでまとめてチェック／解除。'
+                : interactive
+                ? activeTool === 'eyedropper'
+                  ? 'マスをタップでその色を取得。'
+                  : activeTool === 'bucket'
+                  ? 'タップで同じ色のつながった範囲を塗りつぶし。'
+                  : '1本指のドラッグでまとめて' + (activeTool === 'eraser' ? '消去' : '塗り') + '。'
+                : '1本指のドラッグで移動。'
+            }
           </div>`
         : null}
 
