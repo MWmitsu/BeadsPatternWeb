@@ -445,6 +445,32 @@ input.warn--error {
 }
 .bead-canvas__full { white-space: nowrap; }
 
+/* 編集ツールバー(ペン/消しゴム/スポイト/バケツ + ミラー) */
+.bead-canvas__sep {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 3px;
+  vertical-align: middle;
+}
+.bead-canvas__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+.bead-canvas__tool { white-space: nowrap; }
+.bead-canvas__curcolor { width: 24px; height: 24px; flex: 0 0 auto; border: 2px solid var(--border); }
+.bead-canvas__mir { min-width: 34px; font-size: 1.05em; }
+@media (max-width: 540px) {
+  .bead-canvas__tool-label { display: none; }
+}
+
 .bead-canvas__compare {
   display: flex;
   gap: 12px;

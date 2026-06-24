@@ -1,12 +1,11 @@
 // ============================================================
 // BeadCanvas: 図案を <canvas> に描画する中核プレビュー(iPad/タッチ対応)
 // ------------------------------------------------------------
-// - drawPattern で pattern を描画。viewMode で表示を切替。
-// - 操作はマウス/タッチ/ペン共通の Pointer Events。ドラッグで連続して
-//   「塗り替え(編集色)」または「作業チェックの消し込み」ができる(直線補間で抜けを防止)。
-// - 全画面モード(CSSオーバーレイ。iPad Safari は要素フルスクリーンAPI非対応のため独自実装)。
-//   表示モード:
-//   完成(finished) / 数字付き(numbers) / グリッド(grid) / 色別ハイライト(highlight) / 元画像比較(compare)
+// - drawPattern で描画。viewMode で表示切替。Pointer Events でドラッグ操作。
+// - 編集ツール: ペン / 消しゴム(背景化) / スポイト(色抽出) / ぬりつぶし(バケツ)。
+//   ドラッグはBresenham直線補間で抜けなし。Undo/Redo・左右上下ミラーに対応。
+// - 作業チェック(消し込み)モードも同じドラッグ操作。
+// - 全画面モード(CSSオーバーレイ。iPad Safariの要素フルスクリーンAPI非対応のため独自実装)。
 // ============================================================
 
 import { html, useRef, useEffect, useState } from '../lib/html.js';
@@ -16,22 +15,22 @@ const MIN_CELL_SIZE = 2;
 const MAX_CELL_SIZE = 48;
 const ZOOM_STEP = 2;
 
-/** viewMode と各 flag から drawPattern 用オプションを組み立てる */
+const TOOLS = [
+  { k: 'pen', label: 'ペン', icon: '✏️' },
+  { k: 'eraser', label: '消しゴム', icon: '⌫' },
+  { k: 'eyedropper', label: 'スポイト', icon: '💧' },
+  { k: 'bucket', label: 'ぬりつぶし', icon: '🪣' },
+];
+
 function buildDrawOpts(viewMode, flags) {
   const { showGrid, showNumbers, highlightColorId } = flags;
   switch (viewMode) {
-    case 'finished':
-      return { showGrid: false, showNumbers: false, highlightColorId: null };
-    case 'numbers':
-      return { showGrid: true, showNumbers: true, highlightColorId: null };
-    case 'grid':
-      return { showGrid: true, showNumbers: false, highlightColorId: null };
-    case 'highlight':
-      return { showGrid, showNumbers, highlightColorId };
-    case 'compare':
-      return { showGrid: false, showNumbers: false, highlightColorId: null };
-    default:
-      return { showGrid, showNumbers, highlightColorId: highlightColorId ?? null };
+    case 'finished': return { showGrid: false, showNumbers: false, highlightColorId: null };
+    case 'numbers': return { showGrid: true, showNumbers: true, highlightColorId: null };
+    case 'grid': return { showGrid: true, showNumbers: false, highlightColorId: null };
+    case 'highlight': return { showGrid, showNumbers, highlightColorId };
+    case 'compare': return { showGrid: false, showNumbers: false, highlightColorId: null };
+    default: return { showGrid, showNumbers, highlightColorId: highlightColorId ?? null };
   }
 }
 
@@ -47,7 +46,6 @@ function lineCells(a, b) {
   const sx = x0 < x1 ? 1 : -1;
   const sy = y0 < y1 ? 1 : -1;
   let err = dx - dy;
-  // 最大ステップ数の安全弁
   let guard = dx + dy + 2;
   while (guard-- > 0) {
     const e2 = 2 * err;
@@ -59,24 +57,6 @@ function lineCells(a, b) {
   return cells;
 }
 
-/**
- * @param {Object} props
- * @param {{colors:any[],cells:any[],width:number,height:number}|null} props.pattern
- * @param {'finished'|'numbers'|'grid'|'highlight'|'compare'} props.viewMode
- * @param {boolean} props.showGrid
- * @param {boolean} props.showNumbers
- * @param {number|null} props.highlightColorId
- * @param {string|null} props.originalUrl
- * @param {number} props.cellSize
- * @param {(n:number)=>void} props.onCellSizeChange
- * @param {boolean} props.editingEnabled  塗りモード(編集色が選択されている)
- * @param {boolean} props.checkMode       作業チェックモード
- * @param {Set<number>|null} props.doneSet 作業済みセル index(y*width+x)
- * @param {number} props.totalBeads
- * @param {(cells:{x:number,y:number}[])=>void} props.onPaintCells   塗りモードでセルを塗る
- * @param {(cells:{x:number,y:number}[], markDone:boolean)=>void} props.onSetDone 作業チェックの設定
- * @param {()=>void} [props.onToggleCheckMode] 全画面ツールバー用(任意)
- */
 export function BeadCanvas(props) {
   const {
     pattern,
@@ -88,24 +68,37 @@ export function BeadCanvas(props) {
     cellSize = 16,
     onCellSizeChange,
     editingEnabled = false,
+    editColorId = null,
+    activeTool = 'pen',
+    onSetTool,
+    onStrokeBegin,
+    onDraw,
+    onBucket,
+    onEyedrop,
+    canUndo = false,
+    canRedo = false,
+    onUndo,
+    onRedo,
+    mirrorX = false,
+    mirrorY = false,
+    onToggleMirrorX,
+    onToggleMirrorY,
     checkMode = false,
     doneSet = null,
     totalBeads = 0,
-    onPaintCells,
     onSetDone,
     onToggleCheckMode,
   } = props;
 
   const canvasRef = useRef(null);
   const stageRef = useRef(null);
-  const dragRef = useRef(null); // {type:'check'|'paint', markDone?, last:{x,y}}
+  const dragRef = useRef(null);
   const [fullscreen, setFullscreen] = useState(false);
 
   const interactive = editingEnabled || checkMode;
   const doneCount = doneSet ? doneSet.size : 0;
   const donePct = totalBeads > 0 ? Math.round((doneCount / totalBeads) * 100) : 0;
 
-  // pattern / オプション / cellSize の変化時に再描画
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return;
@@ -124,11 +117,8 @@ export function BeadCanvas(props) {
   const doFit = () => {
     if (!onCellSizeChange || !pattern || !stageRef.current) return;
     const avail = stageRef.current.clientWidth - 12;
-    const fit = Math.floor(avail / pattern.width);
-    onCellSizeChange(clampCell(fit));
+    onCellSizeChange(clampCell(Math.floor(avail / pattern.width)));
   };
-
-  // 全画面に入ったら表示幅に合わせる
   useEffect(() => {
     if (!fullscreen) return;
     const id = setTimeout(doFit, 90);
@@ -136,7 +126,7 @@ export function BeadCanvas(props) {
     // eslint-disable-next-line
   }, [fullscreen]);
 
-  // ---- ポインタ(ドラッグ)操作 ----
+  // ---- ポインタ操作 ----
   const cellFromEvent = (e) => {
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return null;
@@ -147,13 +137,6 @@ export function BeadCanvas(props) {
     const y = Math.floor(((e.clientY - rect.top) * sy) / cellSize);
     if (x < 0 || y < 0 || x >= pattern.width || y >= pattern.height) return null;
     return { x, y };
-  };
-
-  const applyCells = (cells) => {
-    const d = dragRef.current;
-    if (!d || !cells.length) return;
-    if (d.type === 'check') onSetDone && onSetDone(cells, d.markDone);
-    else if (d.type === 'paint') onPaintCells && onPaintCells(cells);
   };
 
   const onPointerDown = (e) => {
@@ -167,10 +150,24 @@ export function BeadCanvas(props) {
     if (checkMode) {
       const idx = cell.y * pattern.width + cell.x;
       dragRef.current = { type: 'check', markDone: !(doneSet && doneSet.has(idx)), last: cell };
-    } else {
-      dragRef.current = { type: 'paint', last: cell };
+      onSetDone && onSetDone([cell], dragRef.current.markDone);
+      return;
     }
-    applyCells([cell]);
+    // 描画ツール
+    if (activeTool === 'eyedropper') {
+      onEyedrop && onEyedrop(cell.x, cell.y);
+      dragRef.current = null;
+      return;
+    }
+    onStrokeBegin && onStrokeBegin();
+    if (activeTool === 'bucket') {
+      onBucket && onBucket(cell.x, cell.y);
+      dragRef.current = null;
+      return;
+    }
+    const erase = activeTool === 'eraser';
+    dragRef.current = { type: 'draw', erase, last: cell };
+    onDraw && onDraw([cell], erase);
   };
 
   const onPointerMove = (e) => {
@@ -179,13 +176,13 @@ export function BeadCanvas(props) {
     const cell = cellFromEvent(e);
     if (!cell) return;
     if (cell.x === d.last.x && cell.y === d.last.y) return;
-    applyCells(lineCells(d.last, cell));
+    const line = lineCells(d.last, cell);
+    if (d.type === 'check') onSetDone && onSetDone(line, d.markDone);
+    else if (d.type === 'draw') onDraw && onDraw(line, d.erase);
     d.last = cell;
   };
 
-  const endDrag = () => {
-    dragRef.current = null;
-  };
+  const endDrag = () => { dragRef.current = null; };
 
   // ---- プレースホルダ ----
   if (!pattern) {
@@ -200,6 +197,7 @@ export function BeadCanvas(props) {
 
   const totalCells = pattern.width * pattern.height;
   const isCompare = viewMode === 'compare';
+  const curColor = editingEnabled ? pattern.colors.find((c) => c.id === editColorId) : null;
   const canvasClass = 'bead-canvas__canvas' + (interactive ? ' bead-canvas__canvas--editing' : '');
   const rootClass = 'bead-canvas' + (fullscreen ? ' bead-canvas--fullscreen' : '');
 
@@ -220,6 +218,11 @@ export function BeadCanvas(props) {
       <div class="bead-canvas__toolbar">
         <div class="bead-canvas__zoom">
           <button type="button" class="btn btn--ghost btn--sm bead-canvas__zoom-btn"
+            onClick=${onUndo} disabled=${!canUndo} aria-label="取り消し" title="取り消し (Ctrl+Z)">↩︎</button>
+          <button type="button" class="btn btn--ghost btn--sm bead-canvas__zoom-btn"
+            onClick=${onRedo} disabled=${!canRedo} aria-label="やり直し" title="やり直し (Ctrl+Y)">↪︎</button>
+          <span class="bead-canvas__sep"></span>
+          <button type="button" class="btn btn--ghost btn--sm bead-canvas__zoom-btn"
             onClick=${zoomOut} disabled=${cellSize <= MIN_CELL_SIZE} aria-label="縮小">−</button>
           <span class="bead-canvas__zoom-value">${cellSize}px</span>
           <button type="button" class="btn btn--ghost btn--sm bead-canvas__zoom-btn"
@@ -229,7 +232,7 @@ export function BeadCanvas(props) {
             onClick=${() => setFullscreen((v) => !v)}>${fullscreen ? '✕ 閉じる' : '⛶ 全画面'}</button>
           ${fullscreen && onToggleCheckMode
             ? html`<button type="button" class=${'btn btn--sm ' + (checkMode ? 'btn--primary' : 'btn--ghost')}
-                onClick=${() => onToggleCheckMode()}>${checkMode ? '作業中' : '作業チェック'}</button>`
+                onClick=${() => onToggleCheckMode()}>${checkMode ? '作業中' : '作業'}</button>`
             : null}
         </div>
         <div class="bead-canvas__info muted">
@@ -239,9 +242,38 @@ export function BeadCanvas(props) {
         </div>
       </div>
 
+      ${editingEnabled && !checkMode
+        ? html`
+            <div class="bead-canvas__tools">
+              ${TOOLS.map(
+                (t) => html`
+                  <button type="button" key=${t.k}
+                    class=${'btn btn--sm bead-canvas__tool ' + (activeTool === t.k ? 'btn--primary' : 'btn--ghost')}
+                    title=${t.label}
+                    onClick=${() => onSetTool && onSetTool(t.k)}>${t.icon}<span class="bead-canvas__tool-label"> ${t.label}</span></button>
+                `
+              )}
+              <span class="bead-canvas__sep"></span>
+              ${curColor
+                ? html`<span class="bead-canvas__curcolor swatch" style=${`background:${curColor.hex}`} title=${`現在の色 ${curColor.name || curColor.hex}`}></span>`
+                : null}
+              <button type="button" class=${'btn btn--sm bead-canvas__mir ' + (mirrorX ? 'btn--primary' : 'btn--ghost')}
+                title="左右ミラー" onClick=${() => onToggleMirrorX && onToggleMirrorX()}>⇆</button>
+              <button type="button" class=${'btn btn--sm bead-canvas__mir ' + (mirrorY ? 'btn--primary' : 'btn--ghost')}
+                title="上下ミラー" onClick=${() => onToggleMirrorY && onToggleMirrorY()}>⇅</button>
+            </div>
+          `
+        : null}
+
       ${interactive
         ? html`<div class="bead-canvas__draghint muted">
-            ${checkMode ? 'ドラッグでまとめてチェック／解除できます。' : 'ドラッグでまとめて塗れます。'}
+            ${checkMode
+              ? 'ドラッグでまとめてチェック／解除できます。'
+              : activeTool === 'eyedropper'
+              ? 'マスをタップでその色を取得します。'
+              : activeTool === 'bucket'
+              ? 'タップで同じ色のつながった範囲を塗りつぶします。'
+              : 'ドラッグでまとめて' + (activeTool === 'eraser' ? '消せます' : '塗れます') + '。'}
           </div>`
         : null}
 

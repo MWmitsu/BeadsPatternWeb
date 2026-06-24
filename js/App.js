@@ -156,6 +156,10 @@ export function App() {
   const [editColorId, setEditColorId] = useState(null);
   const [checkMode, setCheckMode] = useState(false); // 作業チェックモード
   const [doneSet, setDoneSet] = useState(() => new Set()); // 作業済みセルの index(y*width+x)
+  const [activeTool, setActiveTool] = useState('pen'); // 'pen'|'eraser'|'eyedropper'|'bucket'
+  const [mirrorX, setMirrorX] = useState(false); // 左右ミラー描画
+  const [mirrorY, setMirrorY] = useState(false); // 上下ミラー描画
+  const [history, setHistory] = useState({ past: [], future: [] }); // Undo/Redo
 
   // ---- プロジェクト ----
   const [title, setTitle] = useState('無題の図案');
@@ -213,6 +217,7 @@ export function App() {
         setEditColorId(null);
         setCheckMode(false);
         setDoneSet(new Set());
+        clearHistory();
         setViewMode('finished');
         // 画面幅に収まるセルサイズへ自動フィット(スマホでは小さめ)
         setCellSize(autoFitCellSize(result.width));
@@ -288,16 +293,119 @@ export function App() {
     if (image) convertWith(image, next);
   };
 
-  // ---- マス塗り(手動編集・ドラッグ対応) ----
-  const handlePaintCells = (cellList) => {
-    if (editColorId == null || !pattern || !cellList || !cellList.length) return;
-    const color = pattern.colors.find((c) => c.id === editColorId);
-    if (!color) return;
+  // ---- Undo/Redo 履歴(コンパクトなスナップショット) ----
+  const snapshotPattern = () => ({
+    w: pattern.width,
+    h: pattern.height,
+    grid: cellsToGrid(pattern.cells, pattern.width, pattern.height),
+    colors: pattern.colors.map((c) => ({ ...c })),
+  });
+  const restoreSnapshot = (snap) => {
+    const cells = gridToCells(snap.grid, snap.w, snap.h, snap.colors);
+    const { colors, totalBeads } = recomputeCounts(cells, snap.colors);
+    setPattern({
+      width: snap.w,
+      height: snap.h,
+      colors,
+      cells,
+      totalBeads,
+      backgroundCount: snap.w * snap.h - totalBeads,
+    });
+  };
+  // 編集の直前に呼ぶ。現状を past へ積み future を捨てる。
+  const pushHistory = () => {
+    if (!pattern) return;
+    const snap = snapshotPattern();
+    setHistory((hst) => ({ past: [...hst.past.slice(-29), snap], future: [] }));
+  };
+  const clearHistory = () => setHistory({ past: [], future: [] });
+  const undo = () => {
+    if (!pattern || history.past.length === 0) return;
+    const prev = history.past[history.past.length - 1];
+    const cur = snapshotPattern();
+    restoreSnapshot(prev);
+    setHistory({ past: history.past.slice(0, -1), future: [cur, ...history.future].slice(0, 30) });
+  };
+  const redo = () => {
+    if (!pattern || history.future.length === 0) return;
+    const next = history.future[0];
+    const cur = snapshotPattern();
+    restoreSnapshot(next);
+    setHistory({ past: [...history.past, cur].slice(-30), future: history.future.slice(1) });
+  };
+
+  // ---- 描画(ドラッグ・ミラー対応): ペン / 消しゴム ----
+  const applyMirror = (cellList) => {
+    if (!pattern || (!mirrorX && !mirrorY)) return cellList;
+    const W = pattern.width;
+    const H = pattern.height;
+    const out = [];
+    for (const { x, y } of cellList) {
+      out.push({ x, y });
+      if (mirrorX) out.push({ x: W - 1 - x, y });
+      if (mirrorY) out.push({ x, y: H - 1 - y });
+      if (mirrorX && mirrorY) out.push({ x: W - 1 - x, y: H - 1 - y });
+    }
+    return out;
+  };
+  const handleDraw = (cellList, erase) => {
+    if (!pattern || !cellList || !cellList.length) return;
+    let colorId;
+    let hex;
+    if (erase) {
+      colorId = BACKGROUND_COLOR_ID;
+      hex = '';
+    } else {
+      if (editColorId == null) return;
+      const color = pattern.colors.find((c) => c.id === editColorId);
+      if (!color) return;
+      colorId = editColorId;
+      hex = color.hex;
+    }
+    const W = pattern.width;
+    const H = pattern.height;
     const cells = pattern.cells.slice();
     let changed = false;
-    for (const { x, y } of cellList) {
-      if (x < 0 || y < 0 || x >= pattern.width || y >= pattern.height) continue;
-      const idx = y * pattern.width + x;
+    for (const { x, y } of applyMirror(cellList)) {
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const idx = y * W + x;
+      if (cells[idx].colorId !== colorId) {
+        cells[idx] = { x, y, colorId, hex };
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    const { colors, totalBeads } = recomputeCounts(cells, pattern.colors);
+    setPattern({ ...pattern, cells, colors, totalBeads });
+  };
+
+  // ---- 塗りつぶし(バケツ・4連結フラッドフィル) ----
+  const handleBucketFill = (sx, sy) => {
+    if (editColorId == null || !pattern) return;
+    const color = pattern.colors.find((c) => c.id === editColorId);
+    if (!color) return;
+    const W = pattern.width;
+    const H = pattern.height;
+    const cells = pattern.cells.slice();
+    const target = cells[sy * W + sx].colorId;
+    if (target === editColorId) return;
+    const seen = new Uint8Array(W * H);
+    const stack = [[sx, sy]];
+    const region = [];
+    while (stack.length) {
+      const [x, y] = stack.pop();
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const idx = y * W + x;
+      if (seen[idx]) continue;
+      seen[idx] = 1;
+      if (cells[idx].colorId !== target) continue;
+      region.push({ x, y });
+      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    }
+    let changed = false;
+    for (const { x, y } of applyMirror(region)) {
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const idx = y * W + x;
       if (cells[idx].colorId !== editColorId) {
         cells[idx] = { x, y, colorId: editColorId, hex: color.hex };
         changed = true;
@@ -308,9 +416,23 @@ export function App() {
     setPattern({ ...pattern, cells, colors, totalBeads });
   };
 
+  // ---- スポイト(色抽出) ----
+  const handleEyedrop = (x, y) => {
+    if (!pattern) return;
+    const cid = pattern.cells[y * pattern.width + x].colorId;
+    if (cid === BACKGROUND_COLOR_ID) {
+      setActiveTool('eraser');
+    } else {
+      setEditColorId(cid);
+      setCheckMode(false);
+      setActiveTool('pen');
+    }
+  };
+
   // ---- 色のHEX/色名編集 ----
   const handleEditColor = (id, patch) => {
     if (!pattern) return;
+    pushHistory();
     const colors = pattern.colors.map((c) => {
       if (c.id !== id) return c;
       const next = { ...c, ...patch };
@@ -335,6 +457,7 @@ export function App() {
     if (!pattern || fromId === toId) return;
     const target = pattern.colors.find((c) => c.id === toId);
     if (!target) return;
+    pushHistory();
     const merged = pattern.cells.map((cell) =>
       cell.colorId === fromId
         ? { ...cell, colorId: toId, hex: target.hex }
@@ -408,6 +531,7 @@ export function App() {
       setError('「ビーズ色」で 標準/パーラー/ハマ のいずれかを選んでください。');
       return;
     }
+    pushHistory();
     const res = snapPatternToPalette(pattern.cells, pattern.colors, pal.colors);
     setPattern({ ...pattern, cells: res.cells, colors: res.colors, totalBeads: res.totalBeads });
     setHighlightColorId(null);
@@ -517,6 +641,7 @@ export function App() {
     setEditColorId(null);
     setCheckMode(false);
     setDoneSet(new Set());
+    clearHistory();
     setViewMode('finished');
     setCellSize(autoFitCellSize(width));
   };
@@ -538,6 +663,20 @@ export function App() {
     }
     // eslint-disable-next-line
   }, []);
+
+  // キーボードショートカット: Ctrl/Cmd+Z で取り消し、Ctrl+Shift+Z / Ctrl+Y でやり直し
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const k = (e.key || '').toLowerCase();
+      if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   // ---- プロジェクト構築 ----
   const buildProjectBase = (withThumbnail) => {
@@ -640,6 +779,7 @@ export function App() {
       setEditColorId(null);
       setCheckMode(false);
       setDoneSet(new Set(Array.isArray(obj.done) ? obj.done : []));
+      clearHistory();
       setViewMode('finished');
       setCellSize(autoFitCellSize(obj.width));
       setError(null);
@@ -826,8 +966,22 @@ export function App() {
             originalUrl=${originalUrl}
             cellSize=${cellSize}
             onCellSizeChange=${setCellSize}
-            onPaintCells=${handlePaintCells}
             editingEnabled=${editColorId != null}
+            editColorId=${editColorId}
+            activeTool=${activeTool}
+            onSetTool=${setActiveTool}
+            onStrokeBegin=${pushHistory}
+            onDraw=${handleDraw}
+            onBucket=${handleBucketFill}
+            onEyedrop=${handleEyedrop}
+            canUndo=${history.past.length > 0}
+            canRedo=${history.future.length > 0}
+            onUndo=${undo}
+            onRedo=${redo}
+            mirrorX=${mirrorX}
+            mirrorY=${mirrorY}
+            onToggleMirrorX=${() => setMirrorX((v) => !v)}
+            onToggleMirrorY=${() => setMirrorY((v) => !v)}
             checkMode=${checkMode}
             doneSet=${doneSet}
             totalBeads=${totalBeads}
