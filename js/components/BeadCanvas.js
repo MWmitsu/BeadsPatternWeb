@@ -192,6 +192,27 @@ export function BeadCanvas(props) {
     // eslint-disable-next-line
   }, [fullscreen]);
 
+  // 全画面ではマウスホイールでカーソル基準にズーム(PCでのピンチ相当)。
+  // ページスクロールに奪われないよう非passiveで preventDefault する。
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!fsZoom || !stage) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.12 : 0.89;
+      const vp = stage.getBoundingClientRect();
+      const cx = e.clientX - vp.left;
+      const cy = e.clientY - vp.top;
+      setView((v) => {
+        const s1 = Math.max(MIN_SCALE, Math.min(MAX_SCALE, v.scale * factor));
+        const r = s1 / v.scale;
+        return { scale: s1, tx: cx - r * (cx - v.tx), ty: cy - r * (cy - v.ty) };
+      });
+    };
+    stage.addEventListener('wheel', onWheel, { passive: false });
+    return () => stage.removeEventListener('wheel', onWheel);
+  }, [fsZoom]);
+
   // ---- ポインタ操作 ----
   const cellFromEvent = (e) => {
     const canvas = canvasRef.current;
