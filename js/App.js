@@ -288,16 +288,22 @@ export function App() {
     if (image) convertWith(image, next);
   };
 
-  // ---- マス塗り(手動編集) ----
-  const handleCellClick = (x, y) => {
-    if (editColorId == null || !pattern) return;
-    const idx = y * pattern.width + x;
+  // ---- マス塗り(手動編集・ドラッグ対応) ----
+  const handlePaintCells = (cellList) => {
+    if (editColorId == null || !pattern || !cellList || !cellList.length) return;
     const color = pattern.colors.find((c) => c.id === editColorId);
     if (!color) return;
-    const cur = pattern.cells[idx];
-    if (cur && cur.colorId === editColorId) return; // 変化なし
     const cells = pattern.cells.slice();
-    cells[idx] = { x, y, colorId: editColorId, hex: color.hex };
+    let changed = false;
+    for (const { x, y } of cellList) {
+      if (x < 0 || y < 0 || x >= pattern.width || y >= pattern.height) continue;
+      const idx = y * pattern.width + x;
+      if (cells[idx].colorId !== editColorId) {
+        cells[idx] = { x, y, colorId: editColorId, hex: color.hex };
+        changed = true;
+      }
+    }
+    if (!changed) return;
     const { colors, totalBeads } = recomputeCounts(cells, pattern.colors);
     setPattern({ ...pattern, cells, colors, totalBeads });
   };
@@ -353,14 +359,22 @@ export function App() {
     else if (viewMode === 'highlight') setViewMode('finished');
   };
 
-  // ---- 作業チェック ----
-  const handleToggleDone = (x, y) => {
-    if (!pattern) return;
-    const idx = y * pattern.width + x;
+  // ---- 作業チェック(ドラッグ対応) ----
+  const handleSetDone = (cellList, markDone) => {
+    if (!pattern || !cellList || !cellList.length) return;
     const next = new Set(doneSet);
-    if (next.has(idx)) next.delete(idx);
-    else next.add(idx);
-    setDoneSet(next);
+    let changed = false;
+    for (const { x, y } of cellList) {
+      if (x < 0 || y < 0 || x >= pattern.width || y >= pattern.height) continue;
+      const idx = y * pattern.width + x;
+      if (markDone) {
+        if (!next.has(idx)) { next.add(idx); changed = true; }
+      } else if (next.has(idx)) {
+        next.delete(idx);
+        changed = true;
+      }
+    }
+    if (changed) setDoneSet(next);
   };
   const handleMarkHighlightDone = (markDone) => {
     if (!pattern || highlightColorId == null) return;
@@ -375,6 +389,16 @@ export function App() {
     setDoneSet(next);
   };
   const handleResetDone = () => setDoneSet(new Set());
+
+  // 作業モードと塗りモードは排他(同時に両方アクティブにしない)
+  const toggleCheckMode = () => {
+    setCheckMode((v) => !v);
+    setEditColorId(null);
+  };
+  const selectEditColor = (id) => {
+    setEditColorId(id);
+    if (id != null) setCheckMode(false);
+  };
 
   // ---- 検出色を市販ビーズ色へスナップ ----
   const handleSnapToBeads = () => {
@@ -778,7 +802,7 @@ export function App() {
           ${editColorId != null &&
           html`
             <div class="edit-hint">
-              <span>🖌 塗りモード: マスをクリックすると <b>${editColorLabel}</b> で塗り替えます。</span>
+              <span>🖌 塗りモード: ドラッグでまとめて <b>${editColorLabel}</b> に塗れます。</span>
               <button class="btn btn--sm btn--ghost" type="button" onClick=${() => setEditColorId(null)}>
                 やめる
               </button>
@@ -788,7 +812,7 @@ export function App() {
           ${checkMode &&
           html`
             <div class="edit-hint edit-hint--check">
-              <span>✓ 作業モード: マスをタップで「置いた／まだ」を切替（${doneCount} / ${totalBeads}）。</span>
+              <span>✓ 作業モード: ドラッグでまとめてチェック／解除（${doneCount} / ${totalBeads}）。</span>
               <button class="btn btn--sm btn--ghost" type="button" onClick=${() => setCheckMode(false)}>やめる</button>
             </div>
           `}
@@ -802,11 +826,13 @@ export function App() {
             originalUrl=${originalUrl}
             cellSize=${cellSize}
             onCellSizeChange=${setCellSize}
-            onCellClick=${handleCellClick}
+            onPaintCells=${handlePaintCells}
             editingEnabled=${editColorId != null}
             checkMode=${checkMode}
             doneSet=${doneSet}
-            onToggleDone=${handleToggleDone}
+            totalBeads=${totalBeads}
+            onSetDone=${handleSetDone}
+            onToggleCheckMode=${toggleCheckMode}
           />
         </div>
 
@@ -821,7 +847,7 @@ export function App() {
             bufferPercent=${settings.bufferPercent}
             onBufferChange=${(v) => setSettings({ ...settings, bufferPercent: v })}
             checkMode=${checkMode}
-            onToggleCheckMode=${() => setCheckMode((v) => !v)}
+            onToggleCheckMode=${toggleCheckMode}
             doneCount=${doneCount}
             totalBeads=${totalBeads}
             highlightColorId=${highlightColorId}
@@ -838,7 +864,7 @@ export function App() {
             highlightColorId=${highlightColorId}
             onHighlight=${handleHighlight}
             editColorId=${editColorId}
-            onSelectEditColor=${setEditColorId}
+            onSelectEditColor=${selectEditColor}
             onEditColor=${handleEditColor}
             onMergeColors=${handleMergeColors}
           />

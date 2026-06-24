@@ -1,67 +1,81 @@
 // ============================================================
-// BeadCanvas: 図案を <canvas> に描画する中核プレビューコンポーネント
+// BeadCanvas: 図案を <canvas> に描画する中核プレビュー(iPad/タッチ対応)
 // ------------------------------------------------------------
-// drawPattern を使って pattern を描く。viewMode に応じて描画オプションを組み立て、
-// pattern / 各オプション / cellSize の変化時に useEffect で再描画する。
-// ズームUI(＋ / − / フィット)・図案サイズ表示・クリックによるセル選択を備える。
-//   - 完成イメージ(finished):   グリッド/数字なし
-//   - 数字付き設計図(numbers):  グリッド + 数字
-//   - グリッド付き(grid):       グリッドのみ
-//   - 色別ハイライト(highlight): highlightColorId 指定色を強調
-//   - 元画像と比較(compare):     完成イメージ + 元画像を横並び
+// - drawPattern で pattern を描画。viewMode で表示を切替。
+// - 操作はマウス/タッチ/ペン共通の Pointer Events。ドラッグで連続して
+//   「塗り替え(編集色)」または「作業チェックの消し込み」ができる(直線補間で抜けを防止)。
+// - 全画面モード(CSSオーバーレイ。iPad Safari は要素フルスクリーンAPI非対応のため独自実装)。
+//   表示モード:
+//   完成(finished) / 数字付き(numbers) / グリッド(grid) / 色別ハイライト(highlight) / 元画像比較(compare)
 // ============================================================
 
-import { html, useRef, useEffect } from '../lib/html.js';
+import { html, useRef, useEffect, useState } from '../lib/html.js';
 import { drawPattern } from '../lib/renderPattern.js';
 
-// ズームの下限・上限・刻み(1マスのpxサイズ)
 const MIN_CELL_SIZE = 2;
-const MAX_CELL_SIZE = 40;
+const MAX_CELL_SIZE = 48;
 const ZOOM_STEP = 2;
 
-/**
- * viewMode と各 prop から drawPattern 用のオプションを組み立てる。
- * @param {string} viewMode
- * @param {{showGrid:boolean, showNumbers:boolean, highlightColorId:number|null}} flags
- * @returns {{showGrid:boolean, showNumbers:boolean, highlightColorId:number|null}}
- */
+/** viewMode と各 flag から drawPattern 用オプションを組み立てる */
 function buildDrawOpts(viewMode, flags) {
   const { showGrid, showNumbers, highlightColorId } = flags;
   switch (viewMode) {
     case 'finished':
-      // 完成イメージはグリッドも数字も出さない
       return { showGrid: false, showNumbers: false, highlightColorId: null };
     case 'numbers':
-      // 数字付き設計図はグリッド + 数字を常に表示
       return { showGrid: true, showNumbers: true, highlightColorId: null };
     case 'grid':
-      // グリッドのみ(数字なし)
       return { showGrid: true, showNumbers: false, highlightColorId: null };
     case 'highlight':
-      // 色別ハイライト。グリッド/数字は prop の指定を尊重しつつ強調色を渡す
       return { showGrid, showNumbers, highlightColorId };
     case 'compare':
-      // 比較は完成イメージ相当(横並びの元画像と見比べる)
       return { showGrid: false, showNumbers: false, highlightColorId: null };
     default:
-      // 不明なモードは prop をそのまま反映
       return { showGrid, showNumbers, highlightColorId: highlightColorId ?? null };
   }
 }
 
+/** a(含まず) → b(含む) の間のセルを Bresenham 直線で列挙(速いドラッグの抜け防止) */
+function lineCells(a, b) {
+  const cells = [];
+  let x0 = a.x;
+  let y0 = a.y;
+  const x1 = b.x;
+  const y1 = b.y;
+  const dx = Math.abs(x1 - x0);
+  const dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+  // 最大ステップ数の安全弁
+  let guard = dx + dy + 2;
+  while (guard-- > 0) {
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x0 += sx; }
+    if (e2 < dx) { err += dx; y0 += sy; }
+    cells.push({ x: x0, y: y0 });
+    if (x0 === x1 && y0 === y1) break;
+  }
+  return cells;
+}
+
 /**
- * 図案プレビュー本体。
  * @param {Object} props
- * @param {{colors:any[], cells:any[], width:number, height:number}|null} props.pattern
+ * @param {{colors:any[],cells:any[],width:number,height:number}|null} props.pattern
  * @param {'finished'|'numbers'|'grid'|'highlight'|'compare'} props.viewMode
  * @param {boolean} props.showGrid
  * @param {boolean} props.showNumbers
  * @param {number|null} props.highlightColorId
- * @param {string|null} props.originalUrl  compare用の元画像URL
- * @param {number} props.cellSize  1マスのpxサイズ(ズーム結果)
- * @param {(next:number)=>void} props.onCellSizeChange
- * @param {(x:number, y:number)=>void} props.onCellClick
- * @param {boolean} props.editingEnabled
+ * @param {string|null} props.originalUrl
+ * @param {number} props.cellSize
+ * @param {(n:number)=>void} props.onCellSizeChange
+ * @param {boolean} props.editingEnabled  塗りモード(編集色が選択されている)
+ * @param {boolean} props.checkMode       作業チェックモード
+ * @param {Set<number>|null} props.doneSet 作業済みセル index(y*width+x)
+ * @param {number} props.totalBeads
+ * @param {(cells:{x:number,y:number}[])=>void} props.onPaintCells   塗りモードでセルを塗る
+ * @param {(cells:{x:number,y:number}[], markDone:boolean)=>void} props.onSetDone 作業チェックの設定
+ * @param {()=>void} [props.onToggleCheckMode] 全画面ツールバー用(任意)
  */
 export function BeadCanvas(props) {
   const {
@@ -73,152 +87,180 @@ export function BeadCanvas(props) {
     originalUrl = null,
     cellSize = 16,
     onCellSizeChange,
-    onCellClick,
     editingEnabled = false,
     checkMode = false,
     doneSet = null,
-    onToggleDone,
+    totalBeads = 0,
+    onPaintCells,
+    onSetDone,
+    onToggleCheckMode,
   } = props;
 
   const canvasRef = useRef(null);
   const stageRef = useRef(null);
+  const dragRef = useRef(null); // {type:'check'|'paint', markDone?, last:{x,y}}
+  const [fullscreen, setFullscreen] = useState(false);
+
   const interactive = editingEnabled || checkMode;
+  const doneCount = doneSet ? doneSet.size : 0;
+  const donePct = totalBeads > 0 ? Math.round((doneCount / totalBeads) * 100) : 0;
 
   // pattern / オプション / cellSize の変化時に再描画
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return;
-
     const cs = Math.max(MIN_CELL_SIZE, cellSize);
-    // 内部解像度は width*cellSize(CSS側で max-width:100% に縮小表示)
     canvas.width = Math.max(1, pattern.width * cs);
     canvas.height = Math.max(1, pattern.height * cs);
-
     const ctx = canvas.getContext('2d');
     const opts = buildDrawOpts(viewMode, { showGrid, showNumbers, highlightColorId });
     drawPattern(ctx, pattern, { ...opts, cellSize: cs, doneSet });
   }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, cellSize, doneSet]);
 
-  // ---- ズーム操作 ----
-  const handleZoomIn = () => {
-    if (!onCellSizeChange) return;
-    onCellSizeChange(Math.min(MAX_CELL_SIZE, cellSize + ZOOM_STEP));
-  };
-  const handleZoomOut = () => {
-    if (!onCellSizeChange) return;
-    onCellSizeChange(Math.max(MIN_CELL_SIZE, cellSize - ZOOM_STEP));
-  };
-  // フィット: ステージ表示幅に図案の横マス数が収まる cellSize を算出
-  const handleFit = () => {
+  // ---- ズーム ----
+  const clampCell = (v) => Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, v));
+  const zoomIn = () => onCellSizeChange && onCellSizeChange(clampCell(cellSize + ZOOM_STEP));
+  const zoomOut = () => onCellSizeChange && onCellSizeChange(clampCell(cellSize - ZOOM_STEP));
+  const doFit = () => {
     if (!onCellSizeChange || !pattern || !stageRef.current) return;
-    const avail = stageRef.current.clientWidth - 8; // 余白ぶん控える
+    const avail = stageRef.current.clientWidth - 12;
     const fit = Math.floor(avail / pattern.width);
-    const next = Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, fit));
-    onCellSizeChange(next);
+    onCellSizeChange(clampCell(fit));
   };
 
-  // ---- クリック → セル座標へ変換 ----
-  const handleCanvasClick = (e) => {
-    if (!pattern) return;
+  // 全画面に入ったら表示幅に合わせる
+  useEffect(() => {
+    if (!fullscreen) return;
+    const id = setTimeout(doFit, 90);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line
+  }, [fullscreen]);
+
+  // ---- ポインタ(ドラッグ)操作 ----
+  const cellFromEvent = (e) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !pattern) return null;
     const rect = canvas.getBoundingClientRect();
-    // CSSで縮小表示されている場合があるため、内部解像度との比率で補正する
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const offsetX = (e.clientX - rect.left) * scaleX;
-    const offsetY = (e.clientY - rect.top) * scaleY;
-    const x = Math.floor(offsetX / cellSize);
-    const y = Math.floor(offsetY / cellSize);
-    if (x < 0 || y < 0 || x >= pattern.width || y >= pattern.height) return;
-    if (checkMode) {
-      if (onToggleDone) onToggleDone(x, y);
-    } else if (onCellClick) {
-      onCellClick(x, y);
-    }
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
+    const x = Math.floor(((e.clientX - rect.left) * sx) / cellSize);
+    const y = Math.floor(((e.clientY - rect.top) * sy) / cellSize);
+    if (x < 0 || y < 0 || x >= pattern.width || y >= pattern.height) return null;
+    return { x, y };
   };
 
-  // ---- pattern 未読み込み: プレースホルダ ----
+  const applyCells = (cells) => {
+    const d = dragRef.current;
+    if (!d || !cells.length) return;
+    if (d.type === 'check') onSetDone && onSetDone(cells, d.markDone);
+    else if (d.type === 'paint') onPaintCells && onPaintCells(cells);
+  };
+
+  const onPointerDown = (e) => {
+    if (!interactive || !pattern) return;
+    const cell = cellFromEvent(e);
+    if (!cell) return;
+    e.preventDefault();
+    if (canvasRef.current.setPointerCapture) {
+      try { canvasRef.current.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    if (checkMode) {
+      const idx = cell.y * pattern.width + cell.x;
+      dragRef.current = { type: 'check', markDone: !(doneSet && doneSet.has(idx)), last: cell };
+    } else {
+      dragRef.current = { type: 'paint', last: cell };
+    }
+    applyCells([cell]);
+  };
+
+  const onPointerMove = (e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const cell = cellFromEvent(e);
+    if (!cell) return;
+    if (cell.x === d.last.x && cell.y === d.last.y) return;
+    applyCells(lineCells(d.last, cell));
+    d.last = cell;
+  };
+
+  const endDrag = () => {
+    dragRef.current = null;
+  };
+
+  // ---- プレースホルダ ----
   if (!pattern) {
     return html`
       <div class="bead-canvas">
         <div class="bead-canvas__placeholder muted">
-          画像を読み込んで変換してください
+          画像を選んで〔画像から変換〕を押してください
         </div>
       </div>
     `;
   }
 
-  const totalPx = pattern.width * pattern.height;
+  const totalCells = pattern.width * pattern.height;
   const isCompare = viewMode === 'compare';
-  const canvasClass =
-    'bead-canvas__canvas' +
-    (interactive ? ' bead-canvas__canvas--editing' : '');
+  const canvasClass = 'bead-canvas__canvas' + (interactive ? ' bead-canvas__canvas--editing' : '');
+  const rootClass = 'bead-canvas' + (fullscreen ? ' bead-canvas--fullscreen' : '');
+
+  const canvasEl = html`
+    <canvas
+      ref=${canvasRef}
+      class=${canvasClass}
+      onPointerDown=${interactive ? onPointerDown : null}
+      onPointerMove=${interactive ? onPointerMove : null}
+      onPointerUp=${interactive ? endDrag : null}
+      onPointerCancel=${interactive ? endDrag : null}
+      onPointerLeave=${interactive ? endDrag : null}
+    ></canvas>
+  `;
 
   return html`
-    <div class="bead-canvas">
+    <div class=${rootClass}>
       <div class="bead-canvas__toolbar">
         <div class="bead-canvas__zoom">
-          <button
-            type="button"
-            class="btn btn--ghost btn--sm bead-canvas__zoom-btn"
-            onClick=${handleZoomOut}
-            disabled=${cellSize <= MIN_CELL_SIZE}
-            aria-label="縮小"
-          >−</button>
+          <button type="button" class="btn btn--ghost btn--sm bead-canvas__zoom-btn"
+            onClick=${zoomOut} disabled=${cellSize <= MIN_CELL_SIZE} aria-label="縮小">−</button>
           <span class="bead-canvas__zoom-value">${cellSize}px</span>
-          <button
-            type="button"
-            class="btn btn--ghost btn--sm bead-canvas__zoom-btn"
-            onClick=${handleZoomIn}
-            disabled=${cellSize >= MAX_CELL_SIZE}
-            aria-label="拡大"
-          >＋</button>
-          <button
-            type="button"
-            class="btn btn--ghost btn--sm bead-canvas__zoom-fit"
-            onClick=${handleFit}
-          >フィット</button>
+          <button type="button" class="btn btn--ghost btn--sm bead-canvas__zoom-btn"
+            onClick=${zoomIn} disabled=${cellSize >= MAX_CELL_SIZE} aria-label="拡大">＋</button>
+          <button type="button" class="btn btn--ghost btn--sm bead-canvas__zoom-fit" onClick=${doFit}>フィット</button>
+          <button type="button" class="btn btn--ghost btn--sm bead-canvas__full"
+            onClick=${() => setFullscreen((v) => !v)}>${fullscreen ? '✕ 閉じる' : '⛶ 全画面'}</button>
+          ${fullscreen && onToggleCheckMode
+            ? html`<button type="button" class=${'btn btn--sm ' + (checkMode ? 'btn--primary' : 'btn--ghost')}
+                onClick=${() => onToggleCheckMode()}>${checkMode ? '作業中' : '作業チェック'}</button>`
+            : null}
         </div>
         <div class="bead-canvas__info muted">
-          ${pattern.width} × ${pattern.height} マス（計 ${totalPx.toLocaleString()} マス）
+          ${checkMode
+            ? html`<b>作業 ${doneCount} / ${totalBeads}（${donePct}%）</b>`
+            : html`${pattern.width} × ${pattern.height} マス（計 ${totalCells.toLocaleString()} マス）`}
         </div>
       </div>
+
+      ${interactive
+        ? html`<div class="bead-canvas__draghint muted">
+            ${checkMode ? 'ドラッグでまとめてチェック／解除できます。' : 'ドラッグでまとめて塗れます。'}
+          </div>`
+        : null}
 
       ${isCompare
         ? html`
             <div class="bead-canvas__compare" ref=${stageRef}>
               <div class="bead-canvas__compare-pane">
                 <div class="bead-canvas__compare-label muted">完成イメージ</div>
-                <canvas
-                  ref=${canvasRef}
-                  class=${canvasClass}
-                  onClick=${interactive ? handleCanvasClick : null}
-                ></canvas>
+                ${canvasEl}
               </div>
               <div class="bead-canvas__compare-pane">
                 <div class="bead-canvas__compare-label muted">元画像</div>
                 ${originalUrl
-                  ? html`<img
-                      class="bead-canvas__compare-img"
-                      src=${originalUrl}
-                      alt="元画像"
-                    />`
-                  : html`<div class="bead-canvas__compare-empty muted">
-                      元画像がありません
-                    </div>`}
+                  ? html`<img class="bead-canvas__compare-img" src=${originalUrl} alt="元画像" />`
+                  : html`<div class="bead-canvas__compare-empty muted">元画像がありません</div>`}
               </div>
             </div>
           `
-        : html`
-            <div class="bead-canvas__stage" ref=${stageRef}>
-              <canvas
-                ref=${canvasRef}
-                class=${canvasClass}
-                onClick=${interactive ? handleCanvasClick : null}
-              ></canvas>
-            </div>
-          `}
+        : html`<div class="bead-canvas__stage" ref=${stageRef}>${canvasEl}</div>`}
     </div>
   `;
 }

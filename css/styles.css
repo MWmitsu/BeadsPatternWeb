@@ -408,9 +408,42 @@ input.warn--error {
   background: #fff;
   box-shadow: 0 0 0 1px var(--border);
 }
-.bead-canvas__canvas--editing { cursor: crosshair; }
+/* 塗り/作業モード時はドラッグでスクロールや選択をさせず描画に専念 */
+.bead-canvas__canvas--editing {
+  cursor: crosshair;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
 /* 比較モードは一覧性を優先し、左ペインの図案をペース幅に収める */
 .bead-canvas__compare .bead-canvas__canvas { max-width: 100%; height: auto; }
+
+.bead-canvas__draghint { margin: -2px 0 8px; font-size: 0.82em; }
+
+/* 全画面モード(独自オーバーレイ。iPad Safariの要素フルスクリーン非対応に対応) */
+.bead-canvas--fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  margin: 0;
+  border-radius: 0;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.bead-canvas--fullscreen .bead-canvas__toolbar { flex: 0 0 auto; }
+.bead-canvas--fullscreen .bead-canvas__draghint { flex: 0 0 auto; }
+.bead-canvas--fullscreen .bead-canvas__stage,
+.bead-canvas--fullscreen .bead-canvas__compare {
+  flex: 1 1 auto;
+  max-height: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.bead-canvas__full { white-space: nowrap; }
 
 .bead-canvas__compare {
   display: flex;
