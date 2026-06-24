@@ -38,6 +38,7 @@ import { ToolsPanel } from './components/ToolsPanel.js';
 import { BeadListModal } from './components/BeadListModal.js';
 import { BEAD_PALETTES } from './data/beadPalettes.js';
 import { snapPatternToPalette } from './utils/beadMatch.js';
+import { makePlateMask } from './utils/plateShape.js';
 import {
   encodePatternToData,
   decodeDataToPattern,
@@ -93,6 +94,23 @@ function recomputeCounts(cells, colors) {
     };
   });
   return { colors: newColors, totalBeads: total };
+}
+
+/** プレート形状の外側にあるビーズを背景化して返す(再集計込み)。変化が無ければ元を返す。 */
+function maskOffShape(basePattern, shape) {
+  if (!shape || shape === 'square') return basePattern;
+  const mask = makePlateMask(shape, basePattern.width, basePattern.height);
+  let changed = false;
+  const cells = basePattern.cells.map((c) => {
+    if (c.colorId !== BACKGROUND_COLOR_ID && mask[c.y * basePattern.width + c.x] === 0) {
+      changed = true;
+      return { ...c, colorId: BACKGROUND_COLOR_ID, hex: '' };
+    }
+    return c;
+  });
+  if (!changed) return basePattern;
+  const { colors, totalBeads } = recomputeCounts(cells, basePattern.colors);
+  return { ...basePattern, cells, colors, totalBeads };
 }
 
 /** 中央に置く最大の gridAR 矩形(px)を返す */
@@ -213,7 +231,7 @@ export function App() {
           dithering: d.dithering,
           backgroundAsWhite: st.backgroundAsWhite,
         });
-        setPattern(result);
+        setPattern(maskOffShape(result, st.plateShape));
         setCreatedAt(new Date().toISOString());
         setHighlightColorId(null);
         setEditColorId(null);
@@ -371,6 +389,7 @@ export function App() {
     for (const { x, y } of applyMirror(cellList)) {
       if (x < 0 || y < 0 || x >= W || y >= H) continue;
       const idx = y * W + x;
+      if (plateMask && plateMask[idx] === 0) continue; // 形状外には置けない
       if (cells[idx].colorId !== colorId) {
         cells[idx] = { x, y, colorId, hex };
         changed = true;
@@ -400,6 +419,7 @@ export function App() {
       const idx = y * W + x;
       if (seen[idx]) continue;
       seen[idx] = 1;
+      if (plateMask && plateMask[idx] === 0) continue; // 形状外は境界扱い
       if (cells[idx].colorId !== target) continue;
       region.push({ x, y });
       stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
@@ -408,6 +428,7 @@ export function App() {
     for (const { x, y } of applyMirror(region)) {
       if (x < 0 || y < 0 || x >= W || y >= H) continue;
       const idx = y * W + x;
+      if (plateMask && plateMask[idx] === 0) continue; // 形状外には置けない
       if (cells[idx].colorId !== editColorId) {
         cells[idx] = { x, y, colorId: editColorId, hex: color.hex };
         changed = true;
@@ -492,6 +513,7 @@ export function App() {
     for (const { x, y } of cellList) {
       if (x < 0 || y < 0 || x >= pattern.width || y >= pattern.height) continue;
       const idx = y * pattern.width + x;
+      if (pattern.cells[idx].colorId === BACKGROUND_COLOR_ID) continue; // ビーズの無いマスはチェック対象外
       if (markDone) {
         if (!next.has(idx)) { next.add(idx); changed = true; }
       } else if (next.has(idx)) {
@@ -691,6 +713,18 @@ export function App() {
     root.setProperty('--accent-weak', lighten(0.86));
   }, [settings.themeColor]);
 
+  // プレート形状を変えたら反映する。画像があれば再変換して新形状で作り直す(非累積)。
+  useEffect(() => {
+    if (!pattern) return;
+    if (image) {
+      convertWith(image);
+    } else {
+      const masked = maskOffShape(pattern, settings.plateShape);
+      if (masked !== pattern) setPattern(masked);
+    }
+    // eslint-disable-next-line
+  }, [settings.plateShape]);
+
   // ---- プロジェクト構築 ----
   const buildProjectBase = (withThumbnail) => {
     const id = currentId || draftIdRef.current;
@@ -858,6 +892,13 @@ export function App() {
   const beadPalette = BEAD_PALETTES.find((p) => p.id === settings.beadPaletteId) || null;
   const beadPaletteColors = beadPalette ? beadPalette.colors : null;
   const doneCount = doneSet.size;
+  const plateMask = useMemo(
+    () =>
+      pattern && settings.plateShape && settings.plateShape !== 'square'
+        ? makePlateMask(settings.plateShape, pattern.width, pattern.height)
+        : null,
+    [settings.plateShape, pattern ? pattern.width : 0, pattern ? pattern.height : 0]
+  );
 
   return html`
     <div class="app">
@@ -981,6 +1022,7 @@ export function App() {
             originalUrl=${originalUrl}
             cellSize=${cellSize}
             onCellSizeChange=${setCellSize}
+            plateMask=${plateMask}
             editingEnabled=${editColorId != null}
             editColorId=${editColorId}
             activeTool=${activeTool}

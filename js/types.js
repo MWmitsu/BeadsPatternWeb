@@ -117,6 +117,7 @@ export const DEFAULT_SETTINGS = {
   beadPaletteId: 'standard48', // 近い市販ビーズ色のマッピング用パレット('none'で無効)
   bufferPercent: 10,  // 必要数の予備%(購入見積り用)
   themeColor: '#2b8a78', // アプリのテーマ(アクセント)カラー
+  plateShape: 'square', // ペグボード形状: square/circle/hexagon/octagon/diamond/triangle/heart/star/flower
   detection: {
     maxColors: 24,
     colorDistanceThreshold: 35,

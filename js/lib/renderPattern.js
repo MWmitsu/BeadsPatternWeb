@@ -35,6 +35,7 @@ export function drawPattern(ctx, pattern, opts = {}) {
   const majorGridColor = opts.majorGridColor ?? 'rgba(0,0,0,0.42)';
   const dim = opts.dimNonHighlight ?? 0.1;
   const doneSet = opts.doneSet || null; // 作業済みセルの index(y*width+x) の Set
+  const plateMask = opts.plateMask || null; // 1=形状内(ビーズ可) 0=形状外
 
   const colorMap = new Map(colors.map((c) => [c.id, c]));
   const W = width * cellSize;
@@ -46,7 +47,18 @@ export function drawPattern(ctx, pattern, opts = {}) {
 
   // --- セル塗り ---
   for (const cell of cells) {
-    if (cell.colorId === BACKGROUND_COLOR_ID) continue; // 透明背景は塗らない
+    if (cell.colorId === BACKGROUND_COLOR_ID) {
+      // プレート形状内の空セルはペグ(穴)を薄く表示。形状外は何も描かない。
+      if (plateMask && plateMask[cell.y * width + cell.x] === 1 && cellSize >= 4) {
+        const px0 = cell.x * cellSize;
+        const py0 = cell.y * cellSize;
+        ctx.fillStyle = 'rgba(0,0,0,0.10)';
+        ctx.beginPath();
+        ctx.arc(px0 + cellSize / 2, py0 + cellSize / 2, Math.max(1, cellSize * 0.16), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      continue; // ビーズ無しセルは塗らない
+    }
     const color = colorMap.get(cell.colorId);
     const hex = color ? color.hex : cell.hex || '#000000';
     const px = cell.x * cellSize;

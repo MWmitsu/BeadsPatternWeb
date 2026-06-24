@@ -14,6 +14,7 @@
 
 import { html } from '../lib/html.js';
 import { MAX_COLOR_OPTIONS, MERGE_STRENGTH_THRESHOLD, FIT_MODES, THEME_COLORS } from '../types.js';
+import { PLATE_SHAPES } from '../utils/plateShape.js';
 
 /**
  * 変換設定パネル。
@@ -198,6 +199,21 @@ export function SettingsPanel(props) {
               <span>透明として扱う</span>
             </label>
           </div>
+        </div>
+
+        <div class="field">
+          <div class="field__row">
+            <label class="field__label" for="settings-plate">プレート形状</label>
+            <select
+              id="settings-plate"
+              class="settings__select"
+              value=${settings.plateShape || 'square'}
+              onChange=${(e) => patch({ plateShape: e.target.value })}
+            >
+              ${PLATE_SHAPES.map((s) => html`<option key=${s.id} value=${s.id}>${s.name}</option>`)}
+            </select>
+          </div>
+          <p class="field__hint muted">形状外はビーズ無し（空ペグ）になります。円・六角などの台座に対応。</p>
         </div>
 
         <div class="field">
