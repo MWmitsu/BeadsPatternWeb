@@ -19,7 +19,7 @@ import { loadImageFile, fileToDataUrl } from '../utils/imageLoader.js';
  * @param {(message: string) => void} props.onError  読込失敗時のメッセージ通知
  */
 export function ImageUploader(props) {
-  const { onImage, originalUrl, sourceImageName, onError, onSample, onTextToImage } = props;
+  const { onImage, originalUrl, sourceImageName, onError, onSample, onTextToImage, templates, onTemplate } = props;
 
   // 非表示の <input type="file"> を参照(ドロップ領域クリックで開く)
   const inputRef = useRef(null);
@@ -194,6 +194,29 @@ export function ImageUploader(props) {
               >
                 文字から作る
               </button>
+            </div>
+          </div>
+        `}
+
+        ${onTemplate && templates && templates.length > 0 &&
+        html`
+          <div class="uploader__templates">
+            <div class="uploader__text-label muted">または 作例（テンプレート）から作る</div>
+            <div class="uploader__template-grid">
+              ${templates.map(
+                (t) => html`
+                  <button
+                    type="button"
+                    key=${t.id}
+                    class="btn btn--ghost btn--sm uploader__template-btn"
+                    title=${t.name + 'の作例を作る'}
+                    onClick=${() => onTemplate(t.id)}
+                  >
+                    <span class="uploader__template-emoji">${t.emoji}</span>
+                    <span class="uploader__template-name">${t.name}</span>
+                  </button>
+                `
+              )}
             </div>
           </div>
         `}

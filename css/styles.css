@@ -744,6 +744,23 @@ input.warn--error {
 .uploader__text-input { flex: 1 1 auto; min-width: 0; }
 .uploader__text-btn { white-space: nowrap; flex: 0 0 auto; }
 
+.uploader__templates { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.uploader__template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.uploader__template-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  line-height: 1.2;
+}
+.uploader__template-emoji { font-size: 1.5em; line-height: 1; }
+.uploader__template-name { font-size: 0.8em; }
+
 .settings__fit { flex-wrap: wrap; gap: 8px 14px; justify-content: flex-start; }
 .settings__crop-btn { margin-top: 8px; }
 .settings__fit-hint { margin: 6px 0 0; }
@@ -948,6 +965,68 @@ input.warn--error {
   border-top: 1px solid var(--border);
 }
 .beadlist__foot-note { font-size: 0.78em; margin-right: auto; }
+
+/* QRコードで共有 モーダル */
+.qrmodal {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.qrmodal__sheet {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 400px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.qrmodal__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.qrmodal__close {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1.4em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.qrmodal__body { padding: 14px; overflow-y: auto; }
+.qrmodal__lead { margin: 0 0 10px; font-size: 0.92em; }
+.qrmodal__canvas-wrap { display: flex; justify-content: center; }
+.qrmodal__canvas {
+  image-rendering: pixelated;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  max-width: 100%;
+  height: auto;
+}
+.qrmodal__url-row { display: flex; gap: 6px; margin-top: 12px; }
+.qrmodal__url { flex: 1 1 auto; min-width: 0; font-size: 0.8em; }
+.qrmodal__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
 
 /* 印刷: 分割の操作と区画 */
 .print-controls__opt {

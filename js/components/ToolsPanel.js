@@ -41,6 +41,7 @@ export function ToolsPanel(props) {
     onResetDone,
     onShareImage,
     onShareLink,
+    onShareQr,
   } = props;
 
   const selected = beadPalettes.find((p) => p.id === beadPaletteId) || null;
@@ -177,10 +178,18 @@ export function ToolsPanel(props) {
               disabled=${disabled}
               onClick=${() => onShareLink && onShareLink()}
             >リンクを共有</button>
+            ${onShareQr &&
+            html`<button
+              type="button"
+              class="btn btn--sm"
+              disabled=${disabled}
+              onClick=${() => onShareQr()}
+            >QRコードで共有</button>`}
           </div>
           <p class="field__hint muted">
             スマホでは「共有」を押すとLINE・メッセージ・メールなどの共有メニューが開きます（パソコンではコピーします）。
             リンクには図案が埋め込まれており（準備なしで使えます）、受け取った人が開くとそのまま表示されます。
+            「QRコードで共有」を押すと画面にQRコードが出ます。パソコンの画面をスマホのカメラで読み取ると、その図案をスマホで開けます（小さめの図案向け）。
           </p>
         </div>
 

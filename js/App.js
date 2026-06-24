@@ -39,6 +39,8 @@ import { ProjectList } from './components/ProjectList.js';
 import { CropModal } from './components/CropModal.js';
 import { ToolsPanel } from './components/ToolsPanel.js';
 import { BeadListModal } from './components/BeadListModal.js';
+import { QrModal } from './components/QrModal.js';
+import { makeQrMatrix } from './lib/qrcode.js';
 import { BEAD_PALETTES } from './data/beadPalettes.js';
 import { snapPatternToPalette } from './utils/beadMatch.js';
 import { makePlateMask } from './utils/plateShape.js';
@@ -48,6 +50,7 @@ import {
   SHARE_HASH_KEY,
   estimateHashLength,
 } from './utils/shareCodec.js';
+import { TEMPLATES, buildTemplate } from './data/templates.js';
 
 /** 中央の表示モードタブ定義 */
 const VIEW_MODES = [
@@ -252,6 +255,7 @@ export function App() {
   const [printing, setPrinting] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
   const [beadListOpen, setBeadListOpen] = useState(false);
+  const [qrShare, setQrShare] = useState(null); // { matrix, url } QRコード共有モーダル
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const noticeTimer = useRef(null);
@@ -420,6 +424,18 @@ export function App() {
       img.src = dataUrl;
     } catch (e) {
       setError('文字の図案化に失敗しました。');
+    }
+  };
+
+  // 作例（テンプレート）から図案を作る（画像不要・設計どおりのきれいな図案）
+  const handleTemplate = (id) => {
+    const tpl = TEMPLATES.find((t) => t.id === id);
+    if (!tpl) return;
+    try {
+      applyLoaded(buildTemplate(tpl));
+      flash('「' + tpl.name + '」の作例を読み込みました。色や形を自由に変えられます。');
+    } catch (e) {
+      setError('作例の読み込みに失敗しました。');
     }
   };
 
@@ -819,6 +835,57 @@ export function App() {
     copyToClipboard();
   };
 
+  // ---- 共有: QRコード(共有リンクをQR化して画面表示。サーバ不要) ----
+  const handleShareQr = () => {
+    if (!pattern) {
+      setError('共有する図案がありません。');
+      return;
+    }
+    const grid = cellsToGrid(pattern.cells, pattern.width, pattern.height);
+    const data = encodePatternToData({
+      width: pattern.width,
+      height: pattern.height,
+      title,
+      colors: pattern.colors.map((c) => c.hex),
+      grid,
+    });
+    const url = location.origin + location.pathname + '#' + SHARE_HASH_KEY + '=' + data;
+    const matrix = makeQrMatrix(url);
+    if (!matrix) {
+      setError('この図案はQRコードにするには大きすぎます。「リンクを共有」か「画像を共有」をご利用ください。');
+      return;
+    }
+    setQrShare({ matrix, url });
+  };
+
+  // QRコード共有モーダルのリンクコピー
+  const handleQrCopy = (url) => {
+    const ok = () => flash('リンクをコピーしました。');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(ok).catch(() => window.prompt('このリンクをコピーしてください', url));
+    } else {
+      window.prompt('このリンクをコピーしてください', url);
+    }
+  };
+
+  // QR画像(キャンバス)をPNGで保存
+  const handleQrSave = (canvas) => {
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const safeTitle = String(title || '').replace(/[\\/:*?"<>|]/g, '_').trim() || 'beads';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = safeTitle + '_QR.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      flash('QRコード画像を保存しました。');
+    }, 'image/png');
+  };
+
   // ---- 共有データ(URLハッシュ)を図案へ復元 ----
   const applySharedData = (data) => {
     const { width, height, title: t, colors: hexes, grid } = data;
@@ -1215,6 +1282,8 @@ export function App() {
             onError=${setError}
             onSample=${handleSample}
             onTextToImage=${handleTextToImage}
+            templates=${TEMPLATES}
+            onTemplate=${handleTemplate}
           />
           <${SettingsPanel}
             settings=${settings}
@@ -1345,6 +1414,7 @@ export function App() {
             onResetDone=${handleResetDone}
             onShareImage=${handleShareImage}
             onShareLink=${handleShareLink}
+            onShareQr=${handleShareQr}
           />
           <${ColorPalette}
             colors=${colors}
@@ -1401,6 +1471,18 @@ export function App() {
           width=${pattern ? pattern.width : 0}
           height=${pattern ? pattern.height : 0}
           onClose=${() => setBeadListOpen(false)}
+        />
+      `}
+
+      ${qrShare &&
+      html`
+        <${QrModal}
+          matrix=${qrShare.matrix}
+          url=${qrShare.url}
+          title=${title}
+          onClose=${() => setQrShare(null)}
+          onCopy=${handleQrCopy}
+          onSave=${handleQrSave}
         />
       `}
     </div>
