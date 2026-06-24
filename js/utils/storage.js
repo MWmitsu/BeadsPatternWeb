@@ -5,7 +5,7 @@
 // 読み込み時に colors の id→hex 対応から cells を復元する。
 // ============================================================
 
-import { STORAGE_KEY, BACKGROUND_COLOR_ID } from '../types.js';
+import { STORAGE_KEY, BACKGROUND_COLOR_ID, DRAFT_KEY } from '../types.js';
 
 /**
  * ブラウザ向けのユニークID(時刻 + 乱数)を生成する。
@@ -128,5 +128,36 @@ export function deleteProject(id) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   } catch {
     // 削除失敗は致命的でないため握りつぶす
+  }
+}
+
+// ---- 自動保存(編集中ドラフト) ----------------------------------
+
+/** 編集中の図案をドラフトとして自動保存する(容量超過等は無視)。 */
+export function saveDraft(project) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(project));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** ドラフトを読み込む(無ければ null)。 */
+export function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** ドラフトを消す。 */
+export function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* ignore */
   }
 }

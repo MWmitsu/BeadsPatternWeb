@@ -118,6 +118,7 @@ export const DEFAULT_SETTINGS = {
   bufferPercent: 10,  // 必要数の予備%(購入見積り用)
   themeColor: '#2b8a78', // アプリのテーマ(アクセント)カラー
   plateShape: 'square', // ペグボード形状: square/circle/hexagon/octagon/diamond/triangle/heart/star/flower
+  roundBeads: false, // 完成イメージを丸ビーズ風で表示
   detection: {
     maxColors: 24,
     colorDistanceThreshold: 35,
@@ -155,3 +156,5 @@ export const ACCEPTED_IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.webp'];
 
 /** localStorage キー */
 export const STORAGE_KEY = 'beads-pattern-projects-v1';
+/** 自動保存(編集中ドラフト)用キー */
+export const DRAFT_KEY = 'beads-pattern-draft-v1';

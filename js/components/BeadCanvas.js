@@ -76,6 +76,7 @@ export function BeadCanvas(props) {
     cellSize = 16,
     onCellSizeChange,
     plateMask = null,
+    round = false,
     editingEnabled = false,
     editColorId = null,
     activeTool = 'pen',
@@ -121,8 +122,8 @@ export function BeadCanvas(props) {
     canvas.height = Math.max(1, pattern.height * cs);
     const ctx = canvas.getContext('2d');
     const opts = buildDrawOpts(viewMode, { showGrid, showNumbers, highlightColorId });
-    drawPattern(ctx, pattern, { ...opts, cellSize: cs, doneSet, plateMask });
-  }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, cellSize, doneSet, plateMask]);
+    drawPattern(ctx, pattern, { ...opts, cellSize: cs, doneSet, plateMask, round });
+  }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, cellSize, doneSet, plateMask, round]);
 
   // ---- 表示変換(全画面) ----
   const viewportRect = () => (stageRef.current ? stageRef.current.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 });

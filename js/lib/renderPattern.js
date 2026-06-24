@@ -36,6 +36,7 @@ export function drawPattern(ctx, pattern, opts = {}) {
   const dim = opts.dimNonHighlight ?? 0.1;
   const doneSet = opts.doneSet || null; // 作業済みセルの index(y*width+x) の Set
   const plateMask = opts.plateMask || null; // 1=形状内(ビーズ可) 0=形状外
+  const round = opts.round || false; // 丸ビーズ風で描く
 
   const colorMap = new Map(colors.map((c) => [c.id, c]));
   const W = width * cellSize;
@@ -67,7 +68,23 @@ export function drawPattern(ctx, pattern, opts = {}) {
     const isDim = highlightColorId != null && cell.colorId !== highlightColorId;
     ctx.globalAlpha = isDim ? dim : 1;
     ctx.fillStyle = hex;
-    ctx.fillRect(px, py, cellSize, cellSize);
+    if (round && cellSize >= 4) {
+      const cxp = px + cellSize / 2;
+      const cyp = py + cellSize / 2;
+      const rad = cellSize * 0.46;
+      ctx.beginPath();
+      ctx.arc(cxp, cyp, rad, 0, Math.PI * 2);
+      ctx.fill();
+      if (!showNumbers && cellSize >= 7) {
+        // ビーズ中央の穴
+        ctx.fillStyle = 'rgba(0,0,0,0.16)';
+        ctx.beginPath();
+        ctx.arc(cxp, cyp, rad * 0.34, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else {
+      ctx.fillRect(px, py, cellSize, cellSize);
+    }
     ctx.globalAlpha = 1;
 
     // --- 数字(明度に応じ黒/白) ---

@@ -25,6 +25,9 @@ import {
   loadProjects,
   loadProject,
   deleteProject,
+  saveDraft,
+  loadDraft,
+  clearDraft,
 } from './utils/storage.js';
 import { ImageUploader } from './components/ImageUploader.js';
 import { SettingsPanel } from './components/SettingsPanel.js';
@@ -452,6 +455,35 @@ export function App() {
     }
   };
 
+  // ---- 変形(反転・回転) ----
+  const transformPattern = (mapFn, newW, newH) => {
+    if (!pattern) return;
+    pushHistory();
+    const W = pattern.width;
+    const H = pattern.height;
+    const src = pattern.cells;
+    const out = new Array(newW * newH);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const [nx, ny] = mapFn(x, y, W, H);
+        const s = src[y * W + x];
+        out[ny * newW + nx] = { x: nx, y: ny, colorId: s.colorId, hex: s.hex };
+      }
+    }
+    let next = maskOffShape({ ...pattern, width: newW, height: newH, cells: out }, settings.plateShape);
+    const { colors, totalBeads } = recomputeCounts(next.cells, next.colors);
+    setPattern({ ...next, colors, totalBeads });
+    if (newW !== pattern.width || newH !== pattern.height) {
+      setSettings((s) => ({ ...s, width: newW, height: newH }));
+      setCellSize(autoFitCellSize(newW));
+    }
+    setDoneSet(new Set());
+    setHighlightColorId(null);
+  };
+  const handleFlipH = () => transformPattern((x, y, W) => [W - 1 - x, y], pattern.width, pattern.height);
+  const handleFlipV = () => transformPattern((x, y, W, H) => [x, H - 1 - y], pattern.width, pattern.height);
+  const handleRotate = () => transformPattern((x, y, W, H) => [H - 1 - y, x], pattern.height, pattern.width);
+
   // ---- 色のHEX/色名編集 ----
   const handleEditColor = (id, patch) => {
     if (!pattern) return;
@@ -684,9 +716,28 @@ export function App() {
       try {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
       } catch (_) {}
+    } else {
+      // 共有リンクが無ければ、前回の自動保存(ドラフト)を復元
+      const draft = loadDraft();
+      if (draft && Array.isArray(draft.grid) && Array.isArray(draft.colors)) {
+        applyLoaded(draft);
+        flash('前回の続きを復元しました。');
+      }
     }
     // eslint-disable-next-line
   }, []);
+
+  // 自動保存(ドラフト): 図案/設定/作業状況の変更を少し遅延して保存
+  useEffect(() => {
+    if (!pattern) return;
+    const id = setTimeout(() => {
+      try {
+        saveDraft(buildProjectBase(false));
+      } catch (_) {}
+    }, 800);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line
+  }, [pattern, settings, title, doneSet]);
 
   // キーボードショートカット: Ctrl/Cmd+Z で取り消し、Ctrl+Shift+Z / Ctrl+Y でやり直し
   useEffect(() => {
@@ -1023,6 +1074,7 @@ export function App() {
             cellSize=${cellSize}
             onCellSizeChange=${setCellSize}
             plateMask=${plateMask}
+            round=${settings.roundBeads}
             editingEnabled=${editColorId != null}
             editColorId=${editColorId}
             activeTool=${activeTool}
@@ -1063,6 +1115,9 @@ export function App() {
               if (pattern) setBeadListOpen(true);
               else setError('先に画像を変換してください。');
             }}
+            onFlipH=${handleFlipH}
+            onFlipV=${handleFlipV}
+            onRotate=${handleRotate}
             bufferPercent=${settings.bufferPercent}
             onBufferChange=${(v) => setSettings({ ...settings, bufferPercent: v })}
             checkMode=${checkMode}

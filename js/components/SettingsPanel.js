@@ -178,6 +178,17 @@ export function SettingsPanel(props) {
         </div>
 
         <div class="field">
+          <label class="field__row toggle">
+            <input
+              type="checkbox"
+              checked=${settings.roundBeads}
+              onChange=${(e) => patch({ roundBeads: e.target.checked })}
+            />
+            <span class="field__label">ビーズ風（丸）で表示</span>
+          </label>
+        </div>
+
+        <div class="field">
           <span class="field__label">背景の扱い</span>
           <div class="field__row settings__radio-row">
             <label class="settings__radio">

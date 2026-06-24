@@ -27,6 +27,9 @@ export function ToolsPanel(props) {
     patternWidth = 0,
     patternHeight = 0,
     onOpenBeadList,
+    onFlipH,
+    onFlipV,
+    onRotate,
     bufferPercent = 10,
     onBufferChange,
     checkMode = false,
@@ -107,6 +110,19 @@ export function ToolsPanel(props) {
             </span>
           </label>
           <p class="field__hint muted">色一覧・印刷・CSVに「必要数（個数＋予備）」を表示します。買い足しの目安に。</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- 変形 -->
+        <div class="tools__block">
+          <div class="field__label">変形</div>
+          <div class="tools__row tools__transform">
+            <button type="button" class="btn btn--sm btn--ghost" disabled=${disabled} onClick=${() => onFlipH && onFlipH()}>⇆ 左右反転</button>
+            <button type="button" class="btn btn--sm btn--ghost" disabled=${disabled} onClick=${() => onFlipV && onFlipV()}>⇅ 上下反転</button>
+            <button type="button" class="btn btn--sm btn--ghost" disabled=${disabled} onClick=${() => onRotate && onRotate()}>⟳ 90°回転</button>
+          </div>
+          <p class="field__hint muted">アイロンの裏面用に反転したり、向きを変えられます。</p>
         </div>
 
         <div class="divider"></div>

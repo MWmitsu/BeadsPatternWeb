@@ -789,6 +789,8 @@ input.warn--error {
 .tools__check-actions { justify-content: flex-start; }
 .tools__share { justify-content: flex-start; }
 .tools__share .btn { flex: 1 1 auto; }
+.tools__transform { justify-content: flex-start; }
+.tools__transform .btn { flex: 1 1 auto; }
 
 /* 色一覧: 必要数 / 近い市販色 */
 .palette__need { font-weight: 600; color: var(--accent-strong); font-size: 0.8em; }
