@@ -315,10 +315,13 @@ export function App() {
   // サンプル画像で試す(その場で簡単な絵を生成して読み込む)
   const handleSample = () => {
     try {
+      // 高解像度(90の6倍)で描いてから縮小すると、境界がにじまずきれいに変換できる
+      const S = 6;
       const c = document.createElement('canvas');
-      c.width = 90;
-      c.height = 90;
+      c.width = 90 * S;
+      c.height = 90 * S;
       const x = c.getContext('2d');
+      x.scale(S, S);
       x.fillStyle = '#7ec8ff'; x.fillRect(0, 0, 90, 90);        // 空
       x.fillStyle = '#7ccf6a'; x.fillRect(0, 62, 90, 28);       // 地面
       x.fillStyle = '#ffd93d'; x.beginPath(); x.arc(70, 20, 12, 0, Math.PI * 2); x.fill(); // 太陽

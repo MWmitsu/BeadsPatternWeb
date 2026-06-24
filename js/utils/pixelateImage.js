@@ -33,18 +33,6 @@ export function pixelateToImageData(image, width, height, options) {
   const w = Math.max(1, Math.floor(width));
   const h = Math.max(1, Math.floor(height));
 
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-
-  // 背景を白扱いにする場合は、縮小描画の前にキャンバスを白で塗る。
-  // こうすると透明部分は白に、半透明部分は白とブレンドされる。
-  if (opts.backgroundAsWhite) {
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, w, h);
-  }
-
   // 元画像から使う範囲(src)と、縮小先キャンバス内の描画範囲(dest)。
   // crop時は src を絞り、contain時は dest を中央に収め余白を背景色にする。
   const iw = image.naturalWidth || image.width || w;
@@ -52,13 +40,42 @@ export function pixelateToImageData(image, width, height, options) {
   const src = opts.srcRect || { sx: 0, sy: 0, sw: iw, sh: ih };
   const dst = opts.destRect || { dx: 0, dy: 0, dw: w, dh: h };
 
-  // 平滑化を有効にして縮小(縮小時のアンチエイリアスで色が均される)
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(image, src.sx, src.sy, src.sw, src.sh, dst.dx, dst.dy, dst.dw, dst.dh);
+  // 面積平均で一気に縮小すると、色の境界で隣り合う2色が混ざって中間色(にじみ)になり、
+  // 「どっちつかずのあいまいな色」のマスができてしまう。
+  // そこで一度 数倍(SS倍)の解像度へ縮小し、各マスを「多数決(最頻色)」で1色に決めて
+  // 境界をくっきりさせる(ビーズはハッキリした色分けが望ましいため)。
+  const SS = Math.max(2, Math.min(4, Math.ceil(560 / Math.max(w, h))));
+  const iw2 = w * SS;
+  const ih2 = h * SS;
 
-  const imageData = ctx.getImageData(0, 0, w, h);
+  const inter = document.createElement('canvas');
+  inter.width = iw2;
+  inter.height = ih2;
+  const ictx = inter.getContext('2d');
+  // 背景を白扱いにする場合は、縮小描画の前にキャンバスを白で塗る(透明部分は白に)。
+  if (opts.backgroundAsWhite) {
+    ictx.fillStyle = '#FFFFFF';
+    ictx.fillRect(0, 0, iw2, ih2);
+  }
+  // 平滑化はあえて切る。平滑化すると境界に「中間色のにじみ帯」が広がり、
+  // 多数決をしても境界マスがその中間色に倒れてしまう。最近傍サンプルにすれば
+  // 各サンプルは元の純色なので、多数決で「多い方の色」にくっきり決まる。
+  ictx.imageSmoothingEnabled = false;
+  ictx.drawImage(
+    image,
+    src.sx, src.sy, src.sw, src.sh,
+    dst.dx * SS, dst.dy * SS, dst.dw * SS, dst.dh * SS
+  );
+  const hi = ictx.getImageData(0, 0, iw2, ih2).data;
+
+  // 出力(w×h)を各マスの最頻色プーリングで作る
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.createImageData(w, h);
   const data = imageData.data;
+  poolDominantColor(hi, iw2, data, w, h, SS);
 
   // ---- コントラスト補正 ----------------------------------
   // 128 を中心に係数を掛けて明暗の差を広げる。0-255 にクランプ。
@@ -81,6 +98,48 @@ export function pixelateToImageData(image, width, height, options) {
   }
 
   return imageData;
+}
+
+/**
+ * 高解像度(SS倍)の RGBA データを、各マスの「最頻色」で w×h へ縮約する。
+ * 近い色を粗いバケット(各色16階調・α8階調)でまとめて多数決し、
+ * 勝ったバケットの平均色(実在する色)を採用する。これにより境界の中間色(にじみ)を抑え、
+ * くっきりした色分けにする。面積平均と違い、境界マスは「多い方の色」に倒れる。
+ * @param {Uint8ClampedArray} hi  高解像度RGBA(iw2×ih2)
+ * @param {number} hiW  高解像度の幅(=w*SS)
+ * @param {Uint8ClampedArray} dst 出力RGBA(w×h)
+ * @param {number} w
+ * @param {number} h
+ * @param {number} SS スーパーサンプル倍率
+ */
+function poolDominantColor(hi, hiW, dst, w, h, SS) {
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const buckets = new Map();
+      let best = null;
+      for (let yy = 0; yy < SS; yy++) {
+        const sy = y * SS + yy;
+        let p = (sy * hiW + x * SS) * 4;
+        for (let xx = 0; xx < SS; xx++) {
+          const r = hi[p];
+          const g = hi[p + 1];
+          const b = hi[p + 2];
+          const a = hi[p + 3];
+          p += 4;
+          const key = ((r >> 4) << 11) | ((g >> 4) << 7) | ((b >> 4) << 3) | (a >> 5);
+          let e = buckets.get(key);
+          if (!e) { e = { c: 0, r: 0, g: 0, b: 0, a: 0 }; buckets.set(key, e); }
+          e.c++; e.r += r; e.g += g; e.b += b; e.a += a;
+          if (!best || e.c > best.c) best = e;
+        }
+      }
+      const dp = (y * w + x) * 4;
+      dst[dp] = Math.round(best.r / best.c);
+      dst[dp + 1] = Math.round(best.g / best.c);
+      dst[dp + 2] = Math.round(best.b / best.c);
+      dst[dp + 3] = Math.round(best.a / best.c);
+    }
+  }
 }
 
 /** 0-255 に丸めてクランプ(このファイル内専用の軽量版) */
