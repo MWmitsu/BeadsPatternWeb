@@ -5,8 +5,9 @@
 // 形状外のセルは非ビーズ(背景)として扱う。正方形は全面有効。
 // ============================================================
 
-/** プレート形状の選択肢(9種) */
+/** プレート形状の選択肢。先頭は「台座なし」(形の制限なし＝グリッド全体・画像のまま) */
 export const PLATE_SHAPES = [
+  { id: 'none', name: '台座なし' },
   { id: 'square', name: '正方形' },
   { id: 'circle', name: '円' },
   { id: 'hexagon', name: '六角形' },
@@ -99,7 +100,8 @@ function inShape(shape, nx, ny) {
  */
 export function makePlateMask(shape, width, height) {
   const mask = new Uint8Array(width * height);
-  if (!shape || shape === 'square') {
+  // 台座なし / 正方形 は全面有効(マスクしない)
+  if (!shape || shape === 'square' || shape === 'none') {
     mask.fill(1);
     return mask;
   }

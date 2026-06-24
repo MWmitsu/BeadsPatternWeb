@@ -247,13 +247,13 @@ export function SettingsPanel(props) {
               <select
                 id="settings-plate"
                 class="settings__select"
-                value=${settings.plateShape || 'square'}
+                value=${settings.plateShape || 'none'}
                 onChange=${(e) => patch({ plateShape: e.target.value })}
               >
                 ${PLATE_SHAPES.map((s) => html`<option key=${s.id} value=${s.id}>${s.name}</option>`)}
               </select>
             </div>
-            <p class="field__hint muted">形の外はビーズを置かないマス（空マス）になります。円・六角などの台座にも使えます。</p>
+            <p class="field__hint muted">「台座なし」は形の制限なし（画像のまま）。円・ハートなどを選ぶと、形の外はビーズを置かないマス（空マス）になります。</p>
           </div>
 
           <div class="field">

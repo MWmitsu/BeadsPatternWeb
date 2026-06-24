@@ -116,7 +116,7 @@ export const DEFAULT_SETTINGS = {
   crop: null,         // 切り抜き範囲(正規化 {x,y,w,h} 0..1)。null は自動(中央カバー)
   beadPaletteId: 'standard48', // 近い市販ビーズ色のマッピング用パレット('none'で無効)
   bufferPercent: 10,  // 必要数の予備%(購入見積り用)
-  plateShape: 'square', // ペグボード形状: square/circle/hexagon/octagon/diamond/triangle/heart/star/flower
+  plateShape: 'none', // 台座形状。既定は「台座なし」(形の制限なし)。none/square/circle/hexagon/octagon/diamond/triangle/heart/star/flower
   roundBeads: false, // 完成イメージを丸ビーズ風で表示
   detection: {
     maxColors: 24,

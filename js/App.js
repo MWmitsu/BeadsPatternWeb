@@ -124,7 +124,7 @@ function recomputeCounts(cells, colors) {
 
 /** プレート形状の外側にあるビーズを背景化して返す(再集計込み)。変化が無ければ元を返す。 */
 function maskOffShape(basePattern, shape) {
-  if (!shape || shape === 'square') return basePattern;
+  if (!shape || shape === 'square' || shape === 'none') return basePattern;
   const mask = makePlateMask(shape, basePattern.width, basePattern.height);
   let changed = false;
   const cells = basePattern.cells.map((c) => {
