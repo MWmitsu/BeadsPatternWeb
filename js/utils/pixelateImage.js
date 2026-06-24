@@ -142,6 +142,64 @@ function poolDominantColor(hi, hiW, dst, w, h, SS) {
   }
 }
 
+/**
+ * 簡易な背景自動削除。縁(画像の外周)につながる「背景色に近い」マスを透明(alpha=0)にする。
+ * 縁からフラッドフィルで消すので、内側に同じ色があっても被写体に穴が空きにくい。
+ * 写真など不透明画像の単色～近い背景を消して、被写体だけの図案にできる。
+ * @param {ImageData} imageData 縮小済み(マス)の ImageData
+ * @param {number} [threshold=70] 背景とみなす色の近さ(RGB距離)。大きいほど広く消す。
+ */
+export function removeBackgroundEdges(imageData, threshold = 70) {
+  const w = imageData.width;
+  const h = imageData.height;
+  const data = imageData.data;
+  if (w < 3 || h < 3) return;
+
+  // --- 背景色を推定: 外周の不透明マスの最頻色(粗バケット>>4 の平均) ---
+  const buckets = new Map();
+  const addEdge = (x, y) => {
+    const p = (y * w + x) * 4;
+    if (data[p + 3] < 8) return; // 既に透明は除外
+    const r = data[p], g = data[p + 1], b = data[p + 2];
+    const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+    let e = buckets.get(key);
+    if (!e) { e = { c: 0, r: 0, g: 0, b: 0 }; buckets.set(key, e); }
+    e.c++; e.r += r; e.g += g; e.b += b;
+  };
+  for (let x = 0; x < w; x++) { addEdge(x, 0); addEdge(x, h - 1); }
+  for (let y = 1; y < h - 1; y++) { addEdge(0, y); addEdge(w - 1, y); }
+  let best = null;
+  for (const e of buckets.values()) if (!best || e.c > best.c) best = e;
+  if (!best) return;
+  const br = best.r / best.c, bg = best.g / best.c, bb = best.b / best.c;
+  const t2 = threshold * threshold;
+  const near = (p) => {
+    if (data[p + 3] < 8) return true; // 透明は背景の連結を広げる
+    const dr = data[p] - br, dg = data[p + 1] - bg, db = data[p + 2] - bb;
+    return dr * dr + dg * dg + db * db <= t2;
+  };
+
+  // --- 外周から、背景色に近い連結マスをフラッドフィルで透明化 ---
+  const visited = new Uint8Array(w * h);
+  const stack = [];
+  const seed = (x, y) => {
+    const i = y * w + x;
+    if (visited[i]) return;
+    if (near(i * 4)) { visited[i] = 1; stack.push(x, y); }
+  };
+  for (let x = 0; x < w; x++) { seed(x, 0); seed(x, h - 1); }
+  for (let y = 1; y < h - 1; y++) { seed(0, y); seed(w - 1, y); }
+  while (stack.length) {
+    const y = stack.pop();
+    const x = stack.pop();
+    data[(y * w + x) * 4 + 3] = 0; // 透明化
+    if (x + 1 < w) seed(x + 1, y);
+    if (x - 1 >= 0) seed(x - 1, y);
+    if (y + 1 < h) seed(x, y + 1);
+    if (y - 1 >= 0) seed(x, y - 1);
+  }
+}
+
 /** 0-255 に丸めてクランプ(このファイル内専用の軽量版) */
 function clampByte(v) {
   if (v < 0) return 0;

@@ -14,7 +14,7 @@ import {
 } from './types.js';
 import { hexToRgb } from './utils/colorDistance.js';
 import { estimateColorNameFromHex } from './utils/colorName.js';
-import { pixelateToImageData } from './utils/pixelateImage.js';
+import { pixelateToImageData, removeBackgroundEdges } from './utils/pixelateImage.js';
 import { detectBeadPattern, recountColors } from './utils/colorDetection.js';
 import { renderPatternToCanvas } from './lib/renderPattern.js';
 import {
@@ -213,6 +213,8 @@ export function App() {
   const [createdAt, setCreatedAt] = useState(null);
   const draftIdRef = useRef(makeId());
   const draftWarnedRef = useRef(false); // 自動保存の容量超過を一度だけ通知するため
+  const editedRef = useRef(false); // 手動編集後か(自動プレビューで上書きしないため)
+  const convertSigSkipRef = useRef(true); // 自動プレビュー: 初回(マウント時)はスキップ
 
   // ---- UI 状態 ----
   const [converting, setConverting] = useState(false);
@@ -233,6 +235,7 @@ export function App() {
   // img を直接受け取るので state 反映前でも実行できる(画像読込直後の自動変換に使う)。
   const convertWith = (img, st = settings) => {
     if (!img) return;
+    editedRef.current = false; // 変換すると手動編集はリセットされる(自動プレビュー再開)
     setConverting(true);
     setError(null);
     // 「変換中…」表示を一度描画させてから重い処理に入る
@@ -243,20 +246,24 @@ export function App() {
         const d = st.detection;
         // fitMode/crop に応じて元画像から使う範囲(src)と描画先(dest)を計算
         const rects = computeRects(img, w, h, st.fitMode || 'stretch', st.crop || null);
+        // 背景を自動で消すときは透明扱い(白で埋めない)で処理する
+        const bgWhite = st.removeBackground ? false : st.backgroundAsWhite;
         const imageData = pixelateToImageData(img, w, h, {
-          backgroundAsWhite: st.backgroundAsWhite,
+          backgroundAsWhite: bgWhite,
           contrastCorrection: d.contrastCorrection,
           outlineEnhancement: d.outlineEnhancement,
           srcRect: rects.src,
           destRect: rects.dest,
         });
+        // 背景の自動削除: 縁につながる背景色のマスを透明にする
+        if (st.removeBackground) removeBackgroundEdges(imageData);
         const result = detectBeadPattern(imageData, {
           maxColors: d.maxColors,
           colorDistanceThreshold: d.colorDistanceThreshold,
           mergeMinorColors: d.mergeMinorColors,
           minorColorCountThreshold: d.minorColorCountThreshold,
           dithering: d.dithering,
-          backgroundAsWhite: st.backgroundAsWhite,
+          backgroundAsWhite: bgWhite,
         });
         setPattern(maskOffShape(result, st.plateShape));
         setCreatedAt(new Date().toISOString());
@@ -392,6 +399,7 @@ export function App() {
   // 編集の直前に呼ぶ。現状を past へ積み future を捨てる。
   const pushHistory = () => {
     if (!pattern) return;
+    editedRef.current = true; // 手動編集が入った印(自動プレビューで上書きしない)
     const snap = snapshotPattern();
     setHistory((hst) => ({ past: [...hst.past.slice(-29), snap], future: [] }));
   };
@@ -877,6 +885,25 @@ export function App() {
     // eslint-disable-next-line
   }, [settings.plateShape]);
 
+  // ---- 自動プレビュー: 変換に関わる設定を変えたら少し待って自動で作り直す ----
+  // 手動編集後・作業チェック中・画像なしのときはしない(編集や進捗を守る)。crop は決定時に直接変換するため除く。
+  const dconv = settings.detection;
+  const convertSig = [
+    settings.width, settings.height, settings.fitMode,
+    settings.backgroundAsWhite, settings.removeBackground,
+    dconv.maxColors, dconv.colorDistanceThreshold, dconv.mergeMinorColors,
+    dconv.minorColorCountThreshold, dconv.dithering, dconv.contrastCorrection, dconv.outlineEnhancement,
+  ].join('|');
+  useEffect(() => {
+    if (convertSigSkipRef.current) { convertSigSkipRef.current = false; return; }
+    if (!image || editedRef.current || doneSet.size > 0) return;
+    const id = setTimeout(() => {
+      if (image && !editedRef.current && doneSet.size === 0) convertWith(image);
+    }, 500);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line
+  }, [convertSig]);
+
   // ---- プロジェクト構築 ----
   const buildProjectBase = (withThumbnail) => {
     const id = currentId || draftIdRef.current;
@@ -974,6 +1001,7 @@ export function App() {
           : freshSettings()
       );
       setTitle(obj.title || '無題の図案');
+      editedRef.current = true; // 復元した図案は自動プレビューで上書きしない(再変換は手動で)
       setCurrentId(obj.id || null);
       if (obj.id) draftIdRef.current = obj.id;
       setSourceImageName(obj.sourceImageName || null);

@@ -198,8 +198,8 @@ export function SettingsPanel(props) {
               <input
                 type="radio"
                 name="settings-background"
-                checked=${settings.backgroundAsWhite === true}
-                onChange=${() => patch({ backgroundAsWhite: true })}
+                checked=${!settings.removeBackground && settings.backgroundAsWhite === true}
+                onChange=${() => patch({ backgroundAsWhite: true, removeBackground: false })}
               />
               <span>白として扱う</span>
             </label>
@@ -207,12 +207,22 @@ export function SettingsPanel(props) {
               <input
                 type="radio"
                 name="settings-background"
-                checked=${settings.backgroundAsWhite === false}
-                onChange=${() => patch({ backgroundAsWhite: false })}
+                checked=${!settings.removeBackground && settings.backgroundAsWhite === false}
+                onChange=${() => patch({ backgroundAsWhite: false, removeBackground: false })}
               />
               <span>透明として扱う</span>
             </label>
+            <label class="settings__radio" title="写真などの背景(まわりの色)を自動で消して、被写体だけの図案にします">
+              <input
+                type="radio"
+                name="settings-background"
+                checked=${settings.removeBackground === true}
+                onChange=${() => patch({ removeBackground: true })}
+              />
+              <span>背景を自動で消す</span>
+            </label>
           </div>
+          <p class="field__hint muted">「背景を自動で消す」は、写真などのまわりの色を消して被写体だけを残します（透明になります）。</p>
         </div>
 
         <p class="settings__note muted">色数を増やすほど元画像に近づきますが、制作は難しくなります。</p>

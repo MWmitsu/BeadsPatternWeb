@@ -111,6 +111,7 @@ export const DEFAULT_SETTINGS = {
   showGrid: true,
   showNumbers: true,
   backgroundAsWhite: true,
+  removeBackground: false, // 背景を自動で消す(縁の背景色を透明化)。true時は透明扱い
   mergeStrength: '標準',
   fitMode: 'crop', // 'stretch'(引き伸ばす) | 'crop'(切り抜き) | 'contain'(全体・余白)。既定は比率を保つ切り抜き
   crop: null,         // 切り抜き範囲(正規化 {x,y,w,h} 0..1)。null は自動(中央カバー)
