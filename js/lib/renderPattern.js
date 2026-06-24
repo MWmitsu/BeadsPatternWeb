@@ -88,13 +88,15 @@ export function drawPattern(ctx, pattern, opts = {}) {
     ctx.globalAlpha = 1;
 
     // --- 数字(明度に応じ黒/白) ---
-    if (showNumbers && cellSize >= 9 && !isDim) {
+    // 小さいマス(PCの通常表示=約8px)でも番号が出るようしきい値を下げ、
+    // 2桁でもマスに収まるよう fillText の maxWidth で自動縮小する。
+    if (showNumbers && cellSize >= 7 && !isDim) {
       const { r, g, b } = hexToRgb(hex);
       ctx.fillStyle = textColorForRgb(r, g, b);
-      ctx.font = `${Math.max(7, Math.floor(cellSize * 0.52))}px system-ui, -apple-system, sans-serif`;
+      ctx.font = `${Math.max(6, Math.floor(cellSize * 0.6))}px system-ui, -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(String(cell.colorId), px + cellSize / 2, py + cellSize / 2 + 0.5);
+      ctx.fillText(String(cell.colorId), px + cellSize / 2, py + cellSize / 2 + 0.5, cellSize - 1.5);
     }
 
     // --- 作業済みチェック(白く覆ってチェックマーク) ---
