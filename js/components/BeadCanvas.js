@@ -16,8 +16,10 @@ import { drawPattern } from '../lib/renderPattern.js';
 const MIN_CELL_SIZE = 2;
 const MAX_CELL_SIZE = 48;
 const ZOOM_STEP = 2;
-const MIN_SCALE = 0.2;
+const MIN_SCALE = 0.08; // 全画面で横長/大きい図案も全体が収まるよう小さめまで許可
 const MAX_SCALE = 8;
+// 全画面は「数字付き設計図」の番号やマス目が読める解像度で描画し、フィット/拡大は view 変換で行う。
+const FS_RENDER_CELL = 18;
 
 const TOOLS = [
   { k: 'pen', label: 'ペン', icon: '✏️' },
@@ -111,13 +113,16 @@ export function BeadCanvas(props) {
 
   const interactive = editingEnabled || checkMode;
   const pointerActive = interactive || fullscreen; // 全画面は非編集でもパン/ズーム可
+  const fsZoom = fullscreen && viewMode !== 'compare'; // 全画面のズーム/パン対象(比較表示は除く)
   const doneCount = doneSet ? doneSet.size : 0;
   const donePct = totalBeads > 0 ? Math.round((doneCount / totalBeads) * 100) : 0;
 
-  // canvas がブラウザ/iOS の上限(1辺・総面積)を超えないよう実効セルサイズを算出する。
+  // 描画に使う実効セルサイズ。
+  // 全画面は番号やマス目が読める固定解像度(FS_RENDER_CELL)で描画し、フィット/拡大は view 変換で行う。
+  // 通常表示はズーム値(cellSize)をそのまま使う。いずれも canvas がブラウザ/iOS の上限を超えないよう抑える。
   // 描画とタップ位置判定の両方で同じ値を使い、座標ズレを防ぐ。
-  const effectiveCellSize = (() => {
-    const base = Math.max(MIN_CELL_SIZE, cellSize);
+  const renderCell = (() => {
+    const base = fsZoom ? FS_RENDER_CELL : Math.max(MIN_CELL_SIZE, cellSize);
     if (!pattern) return base;
     const MAX_SIDE = 8192;
     const MAX_AREA = 16000000; // iOS Safari の総面積上限(約16.7Mpx)より控えめに
@@ -130,13 +135,13 @@ export function BeadCanvas(props) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return;
-    const cs = effectiveCellSize;
+    const cs = renderCell;
     canvas.width = Math.max(1, pattern.width * cs);
     canvas.height = Math.max(1, pattern.height * cs);
     const ctx = canvas.getContext('2d');
     const opts = buildDrawOpts(viewMode, { showGrid, showNumbers, highlightColorId });
     drawPattern(ctx, pattern, { ...opts, cellSize: cs, doneSet, plateMask, round });
-  }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, effectiveCellSize, doneSet, plateMask, round]);
+  }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, renderCell, doneSet, plateMask, round]);
 
   // ---- 表示変換(全画面) ----
   const viewportRect = () => (stageRef.current ? stageRef.current.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 });
@@ -144,8 +149,17 @@ export function BeadCanvas(props) {
 
   const clampCell = (v) => Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, v));
   const doFit = () => {
-    if (fullscreen) resetView();
-    if (!onCellSizeChange || !pattern || !stageRef.current) return;
+    if (!pattern || !stageRef.current) return;
+    if (fsZoom) {
+      // 全画面: 図案全体が収まる倍率を求め、view 変換で中央にフィット(再描画ではなく拡大縮小)
+      const vp = viewportRect();
+      const cw = pattern.width * renderCell;
+      const ch = pattern.height * renderCell;
+      const fit = clampScale(Math.min((vp.width - 12) / cw, (vp.height - 12) / ch));
+      setView({ scale: fit, tx: Math.max(6, (vp.width - cw * fit) / 2), ty: Math.max(6, (vp.height - ch * fit) / 2) });
+      return;
+    }
+    if (!onCellSizeChange) return;
     const avail = stageRef.current.clientWidth - 12;
     onCellSizeChange(clampCell(Math.floor(avail / pattern.width)));
   };
@@ -161,11 +175,11 @@ export function BeadCanvas(props) {
     });
   };
   const zoomIn = () => {
-    if (fullscreen) zoomBy(1.25);
+    if (fsZoom) zoomBy(1.25);
     else onCellSizeChange && onCellSizeChange(clampCell(cellSize + ZOOM_STEP));
   };
   const zoomOut = () => {
-    if (fullscreen) zoomBy(0.8);
+    if (fsZoom) zoomBy(0.8);
     else onCellSizeChange && onCellSizeChange(clampCell(cellSize - ZOOM_STEP));
   };
 
@@ -185,8 +199,8 @@ export function BeadCanvas(props) {
     const rect = canvas.getBoundingClientRect(); // transform 後の矩形
     const sx = canvas.width / rect.width;
     const sy = canvas.height / rect.height;
-    const x = Math.floor(((e.clientX - rect.left) * sx) / effectiveCellSize);
-    const y = Math.floor(((e.clientY - rect.top) * sy) / effectiveCellSize);
+    const x = Math.floor(((e.clientX - rect.left) * sx) / renderCell);
+    const y = Math.floor(((e.clientY - rect.top) * sy) / renderCell);
     if (x < 0 || y < 0 || x >= pattern.width || y >= pattern.height) return null;
     return { x, y };
   };
@@ -297,7 +311,7 @@ export function BeadCanvas(props) {
   const curColor = editingEnabled ? pattern.colors.find((c) => c.id === editColorId) : null;
   const canvasClass = 'bead-canvas__canvas' + (interactive ? ' bead-canvas__canvas--editing' : '');
   const rootClass = 'bead-canvas' + (fullscreen ? ' bead-canvas--fullscreen' : '');
-  const canvasStyle = fullscreen
+  const canvasStyle = fsZoom
     ? `transform: translate(${view.tx}px, ${view.ty}px) scale(${view.scale})`
     : null;
 
