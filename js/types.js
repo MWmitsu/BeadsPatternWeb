@@ -139,9 +139,9 @@ export const FIT_MODES = [
 /** 分割印刷の1区画あたりのマス数(選択肢) */
 export const PRINT_TILE_OPTIONS = [25, 30, 40, 50];
 
-/** 受け付ける画像MIME */
-export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-export const ACCEPTED_IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.webp'];
+/** 受け付ける画像MIME(iPhoneのHEIC/HEIFも受け取り、復号できなければ案内する) */
+export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+export const ACCEPTED_IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
 
 /** localStorage キー */
 export const STORAGE_KEY = 'beads-pattern-projects-v1';

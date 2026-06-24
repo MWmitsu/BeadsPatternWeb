@@ -79,6 +79,10 @@ export function ColorPalette(props) {
             `
           )}
         </div>
+        <!-- 色名候補(全行で共有, id重複を避けて1つだけ置く) -->
+        <datalist id="palette-color-names">
+          ${COLOR_NAMES.map((n) => html`<option key=${n} value=${n}></option>`)}
+        </datalist>
       </div>
     </div>
   `;
@@ -277,10 +281,6 @@ function PaletteRow(props) {
           </label>
         `}
       </div>
-
-      <datalist id="palette-color-names">
-        ${COLOR_NAMES.map((n) => html`<option key=${n} value=${n}></option>`)}
-      </datalist>
     </div>
   `;
 }

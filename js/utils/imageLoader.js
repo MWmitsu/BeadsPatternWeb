@@ -37,9 +37,13 @@ function isAcceptedImage(file) {
 export function loadImageFile(file) {
   return new Promise((resolve, reject) => {
     if (!isAcceptedImage(file)) {
-      reject(new Error('対応していない画像形式です(jpg/png/webp)'));
+      reject(new Error('対応していない画像形式です（JPEG / PNG / WebP に対応しています）。'));
       return;
     }
+
+    // iPhoneの写真(HEIC/HEIF)は多くのブラウザがそのまま表示できないため、失敗時に専用の案内を出す
+    const lower = (file.name || '').toLowerCase();
+    const looksHeic = /\.(heic|heif)$/.test(lower) || /image\/(heic|heif)/.test(file.type || '');
 
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -52,7 +56,14 @@ export function loadImageFile(file) {
 
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error('画像の読み込みに失敗しました'));
+      if (looksHeic) {
+        reject(new Error(
+          'iPhoneの写真（HEIC形式）はそのままでは読み込めない場合があります。' +
+          '「設定→カメラ→フォーマット」を「互換性優先」にするか、写真アプリでスクリーンショットを撮って保存した画像でお試しください。'
+        ));
+      } else {
+        reject(new Error('画像を読み込めませんでした。別の画像でお試しください。'));
+      }
     };
 
     img.src = url;

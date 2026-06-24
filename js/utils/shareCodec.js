@@ -78,9 +78,16 @@ function rleEncode(arr) {
 function rleDecode(rle) {
   const out = [];
   if (!Array.isArray(rle)) return out;
+  // 不正/破損リンクで巨大な連長が来てもフリーズ・OOMしないよう総展開長に上限を設ける。
+  // 図案は最大400×400=160000マスなので、それを超える展開は破棄する。
+  const MAX = 160000;
+  let total = 0;
   for (let i = 0; i + 1 < rle.length; i += 2) {
     const value = rle[i];
     const run = rle[i + 1];
+    if (!Number.isInteger(run) || run < 0 || run > MAX) throw new Error('bad rle run');
+    total += run;
+    if (total > MAX) throw new Error('rle too large');
     for (let n = 0; n < run; n++) out.push(value);
   }
   return out;
@@ -144,11 +151,18 @@ export function decodeDataToPattern(str) {
 
     const width = Number(obj.w);
     const height = Number(obj.h);
-    if (!Number.isFinite(width) || !Number.isFinite(height)) return null;
+    // 復号の入口で寸法を厳格に検証(展開前に外部入力を遮断し、巨大データを弾く)
+    if (
+      !Number.isInteger(width) || !Number.isInteger(height) ||
+      width < 1 || height < 1 || width > 400 || height > 400
+    ) {
+      return null;
+    }
 
     const colors = Array.isArray(obj.c)
       ? obj.c.map((h) => '#' + hexBody(h))
       : [];
+    // rleDecode は総展開長に上限があり、超過時は throw → 下の catch で null を返す
     const grid = rleDecode(obj.g);
 
     return {

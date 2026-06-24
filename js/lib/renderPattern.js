@@ -158,12 +158,20 @@ export function drawPattern(ctx, pattern, opts = {}) {
  */
 export function renderPatternToCanvas(pattern, opts = {}) {
   let cellSize = opts.cellSize ?? 20;
-  // 巨大な図案でも canvas がブラウザ上限(概ね1辺16384px)を超えないよう上限を設ける。
+  // 巨大な図案でも canvas がブラウザ上限を超えないよう上限を設ける。
   // 超える場合は cellSize を自動的に切り下げる(印刷/PNG書き出しの失敗・白画像を防止)。
   const MAX_SIDE = 8192;
   const maxDim = Math.max(pattern.width, pattern.height) || 1;
   if (maxDim * cellSize > MAX_SIDE) {
     cellSize = Math.max(1, Math.floor(MAX_SIDE / maxDim));
+  }
+  // iOS Safari は canvas の総面積上限(約16.7Mpx)が厳しく、超えると toBlob/toDataURL が
+  // 空(真っ白)を返す。1辺だけでなく総面積でも安全圏(12Mpx)に収める。
+  const MAX_AREA = 12000000;
+  const w0 = (pattern.width || 1);
+  const h0 = (pattern.height || 1);
+  if (w0 * cellSize * h0 * cellSize > MAX_AREA) {
+    cellSize = Math.max(1, Math.floor(Math.sqrt(MAX_AREA / (w0 * h0))));
   }
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, pattern.width * cellSize);

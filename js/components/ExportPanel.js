@@ -70,7 +70,8 @@ export function ExportPanel(props) {
   // プロジェクト全体をJSONファイルとして保存
   function handleExportJson() {
     if (!project) return;
-    const text = JSON.stringify(project, null, 2);
+    // 整形(改行・インデント)を省いてファイルサイズを抑える(元画像を含むため肥大しやすい)
+    const text = JSON.stringify(project);
     const blob = new Blob([text], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

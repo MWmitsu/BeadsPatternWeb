@@ -42,7 +42,10 @@ export function cellsToGrid(cells, width, height) {
  * @returns {Array<{x:number,y:number,colorId:number,hex:string}>}
  */
 export function gridToCells(grid, width, height, colors) {
-  const hexMap = new Map((colors || []).map((c) => [c.id, c.hex]));
+  // 破損データ(null要素など)でも例外を投げないよう、妥当な色だけを採用する
+  const hexMap = new Map(
+    (colors || []).filter((c) => c && Number.isInteger(c.id)).map((c) => [c.id, c.hex])
+  );
   const cells = [];
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {

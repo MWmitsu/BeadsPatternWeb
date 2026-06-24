@@ -77,6 +77,29 @@ function autoFitCellSize(patternWidth) {
 }
 
 /**
+ * 元画像を保存用に縮小したデータURL(JPEG)へ変換する。失敗時は null。
+ * 自動保存(localStorage)やJSON書き出しの容量超過・肥大を防ぐ。
+ * 図案は最大400マスなので長辺1280pxあれば再変換・切り抜きには十分。
+ */
+function downscaleImageToDataUrl(img, maxEdge) {
+  try {
+    const iw = img.naturalWidth || img.width;
+    const ih = img.naturalHeight || img.height;
+    if (!iw || !ih) return null;
+    const scale = Math.min(1, maxEdge / Math.max(iw, ih));
+    const dw = Math.max(1, Math.round(iw * scale));
+    const dh = Math.max(1, Math.round(ih * scale));
+    const c = document.createElement('canvas');
+    c.width = dw;
+    c.height = dh;
+    c.getContext('2d').drawImage(img, 0, 0, dw, dh);
+    return c.toDataURL('image/jpeg', 0.85);
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
  * cells から各色の count / ratio を再計算する(id は変えず、全色を残す)。
  * マス塗りや HEX/色名編集など「採番を変えたくない」編集で使う。
  */
@@ -189,6 +212,7 @@ export function App() {
   const [currentId, setCurrentId] = useState(null);
   const [createdAt, setCreatedAt] = useState(null);
   const draftIdRef = useRef(makeId());
+  const draftWarnedRef = useRef(false); // 自動保存の容量超過を一度だけ通知するため
 
   // ---- UI 状態 ----
   const [converting, setConverting] = useState(false);
@@ -240,6 +264,9 @@ export function App() {
         setEditColorId(null);
         setCheckMode(false);
         setDoneSet(new Set());
+        setMirrorX(false);
+        setMirrorY(false);
+        setActiveTool('pen');
         clearHistory();
         setViewMode('finished');
         // 画面幅に収まるセルサイズへ自動フィット(スマホでは小さめ)
@@ -270,7 +297,10 @@ export function App() {
   // ---- 画像読込 ----
   const handleImage = (payload) => {
     setImage(payload.image);
-    setOriginalUrl(payload.dataUrl);
+    // 保存用に縮小した画像をプレビュー/自動保存/書き出しに使う(容量超過・ファイル肥大を防ぐ)。
+    // 変換そのものは元の高解像度 payload.image を使うので品質は落ちない。
+    const storeUrl = downscaleImageToDataUrl(payload.image, 1280) || payload.dataUrl;
+    setOriginalUrl(storeUrl);
     setSourceImageName(payload.name);
     setError(null);
     // タイトル未設定なら拡張子を除いたファイル名を入れる
@@ -306,7 +336,7 @@ export function App() {
 
   // 範囲選択モーダルを開く / 適用する
   const openCrop = () => {
-    if (!image) { setError('先に画像を読み込んでください。'); return; }
+    if (!image) { setError('範囲を調整するには、先に画像を選んでください。'); return; }
     setCropOpen(true);
   };
   const applyCropFromModal = (crop) => {
@@ -324,6 +354,7 @@ export function App() {
     colors: pattern.colors.map((c) => ({ ...c })),
     sw: settings.width,
     sh: settings.height,
+    done: Array.from(doneSet),
   });
   const restoreSnapshot = (snap) => {
     const cells = gridToCells(snap.grid, snap.w, snap.h, snap.colors);
@@ -341,6 +372,8 @@ export function App() {
       setSettings((s) => ({ ...s, width: snap.sw, height: snap.sh }));
       setCellSize(autoFitCellSize(snap.w));
     }
+    // 図案と一緒に作業チェックも当時の状態へ戻す(回転Undo時のズレ防止)
+    setDoneSet(new Set(snap.done || []));
   };
   // 編集の直前に呼ぶ。現状を past へ積み future を捨てる。
   const pushHistory = () => {
@@ -592,7 +625,8 @@ export function App() {
   };
   const selectEditColor = (id) => {
     setEditColorId(id);
-    if (id != null) setCheckMode(false);
+    // 塗り色を選んだら必ずペンに戻す(消しゴム/スポイトのまま塗って消える事故を防ぐ)
+    if (id != null) { setCheckMode(false); setActiveTool('pen'); }
   };
 
   // ---- 検出色を市販ビーズ色へスナップ ----
@@ -626,7 +660,9 @@ export function App() {
     });
     canvas.toBlob((blob) => {
       if (!blob) return;
-      const fname = (title || 'beads') + '.png';
+      // タイトルに / : * ? 等が含まれてもファイル名が壊れないようにする
+      const safeTitle = String(title || '').replace(/[\\/:*?"<>|]/g, '_').trim() || 'beads';
+      const fname = safeTitle + '.png';
       const file = new File([blob], fname, { type: 'image/png' });
       const downloadFallback = () => {
         const url = URL.createObjectURL(blob);
@@ -697,6 +733,14 @@ export function App() {
       setError('共有データを読み込めませんでした。');
       return;
     }
+    // grid の色番号が範囲外(改ざん/破損)なら拒否する(背景=0, 有効色=1..色数)
+    for (let i = 0; i < grid.length; i++) {
+      const v = grid[i];
+      if (!Number.isInteger(v) || v < 0 || v > hexes.length) {
+        setError('共有データを読み込めませんでした。');
+        return;
+      }
+    }
     const colors = hexes.map((hex, i) => ({
       id: i + 1,
       hex,
@@ -718,6 +762,9 @@ export function App() {
     setEditColorId(null);
     setCheckMode(false);
     setDoneSet(new Set());
+    setMirrorX(false);
+    setMirrorY(false);
+    setActiveTool('pen');
     clearHistory();
     setViewMode('finished');
     setCellSize(autoFitCellSize(width));
@@ -741,7 +788,7 @@ export function App() {
       // 共有リンクが無ければ、前回の自動保存(ドラフト)を復元
       const draft = loadDraft();
       if (draft && Array.isArray(draft.grid) && Array.isArray(draft.colors)) {
-        applyLoaded(draft);
+        applyLoaded(draft, { sourceImageUrl: draft.thumbnail });
         flash('前回の続きを復元しました。');
       }
     }
@@ -752,9 +799,17 @@ export function App() {
   useEffect(() => {
     if (!pattern) return;
     const id = setTimeout(() => {
+      let ok = true;
       try {
-        saveDraft(buildProjectBase(false));
-      } catch (_) {}
+        ok = saveDraft(buildProjectBase(false));
+      } catch (_) {
+        ok = false;
+      }
+      // 容量超過などで自動保存できないときは、一度だけ知らせる(静かに消えるのを防ぐ)
+      if (ok === false && !draftWarnedRef.current) {
+        draftWarnedRef.current = true;
+        flash('自動保存できませんでした（端末の保存容量が不足の可能性）。大切な図案は「ファイルに書き出す」で保存してください。');
+      }
     }, 800);
     return () => clearTimeout(id);
     // eslint-disable-next-line
@@ -782,6 +837,15 @@ export function App() {
     if (masked !== pattern) {
       pushHistory();
       setPattern(masked);
+      // 形状外になったマスの作業チェックを取り除く(進捗が総数を超えないように)
+      const mask = makePlateMask(settings.plateShape, masked.width, masked.height);
+      setDoneSet((prev) => {
+        const next = new Set();
+        for (const idx of prev) {
+          if (mask[idx] !== 0) next.add(idx);
+        }
+        return next;
+      });
     }
     // eslint-disable-next-line
   }, [settings.plateShape]);
@@ -848,11 +912,12 @@ export function App() {
   };
 
   // ---- 読み込んだ/インポートしたデータを反映 ----
-  const applyLoaded = (obj) => {
+  const applyLoaded = (obj, opts = {}) => {
     try {
       if (
         !obj ||
         !Array.isArray(obj.colors) ||
+        !obj.colors.every((c) => c && Number.isInteger(c.id) && typeof c.hex === 'string') ||
         !Array.isArray(obj.grid) ||
         !Number.isInteger(obj.width) ||
         !Number.isInteger(obj.height) ||
@@ -882,11 +947,24 @@ export function App() {
       setSourceImageName(obj.sourceImageName || null);
       setOriginalUrl(obj.thumbnail || null);
       setCreatedAt(obj.createdAt || new Date().toISOString());
-      setImage(null); // 再変換用の元画像は持ち越さない
+      // 復元時も元画像を作り直し、範囲調整(切り抜き)・再変換を使えるようにする。
+      // ドラフト/JSON書き出しには元画像が入っているので復元できる(保存図案はサムネのみで不可)。
+      const srcUrl = opts.sourceImageUrl || null;
+      if (srcUrl) {
+        const srcImg = new Image();
+        srcImg.onload = () => setImage(srcImg);
+        srcImg.onerror = () => setImage(null);
+        srcImg.src = srcUrl;
+      } else {
+        setImage(null); // 元画像が無い(保存図案など)場合は持ち越さない
+      }
       setHighlightColorId(null);
       setEditColorId(null);
       setCheckMode(false);
       setDoneSet(new Set(Array.isArray(obj.done) ? obj.done : []));
+      setMirrorX(false);
+      setMirrorY(false);
+      setActiveTool('pen');
       clearHistory();
       setViewMode('finished');
       setCellSize(autoFitCellSize(obj.width));
@@ -1024,7 +1102,7 @@ export function App() {
             project=${project}
             onSaveLocal=${handleSaveLocal}
             onOpenPrint=${handleOpenPrint}
-            onImportProject=${applyLoaded}
+            onImportProject=${(obj) => applyLoaded(obj, { sourceImageUrl: obj && obj.thumbnail })}
             disabled=${!pattern}
             bufferPercent=${settings.bufferPercent}
             beadPaletteColors=${beadPaletteColors}

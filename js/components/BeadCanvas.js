@@ -114,16 +114,29 @@ export function BeadCanvas(props) {
   const doneCount = doneSet ? doneSet.size : 0;
   const donePct = totalBeads > 0 ? Math.round((doneCount / totalBeads) * 100) : 0;
 
+  // canvas がブラウザ/iOS の上限(1辺・総面積)を超えないよう実効セルサイズを算出する。
+  // 描画とタップ位置判定の両方で同じ値を使い、座標ズレを防ぐ。
+  const effectiveCellSize = (() => {
+    const base = Math.max(MIN_CELL_SIZE, cellSize);
+    if (!pattern) return base;
+    const MAX_SIDE = 8192;
+    const MAX_AREA = 16000000; // iOS Safari の総面積上限(約16.7Mpx)より控えめに
+    const maxDim = Math.max(pattern.width, pattern.height) || 1;
+    let cs = Math.min(base, Math.floor(MAX_SIDE / maxDim) || base);
+    const areaCap = Math.floor(Math.sqrt(MAX_AREA / ((pattern.width || 1) * (pattern.height || 1)))) || cs;
+    return Math.max(1, Math.min(cs, areaCap));
+  })();
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return;
-    const cs = Math.max(MIN_CELL_SIZE, cellSize);
+    const cs = effectiveCellSize;
     canvas.width = Math.max(1, pattern.width * cs);
     canvas.height = Math.max(1, pattern.height * cs);
     const ctx = canvas.getContext('2d');
     const opts = buildDrawOpts(viewMode, { showGrid, showNumbers, highlightColorId });
     drawPattern(ctx, pattern, { ...opts, cellSize: cs, doneSet, plateMask, round });
-  }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, cellSize, doneSet, plateMask, round]);
+  }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, effectiveCellSize, doneSet, plateMask, round]);
 
   // ---- 表示変換(全画面) ----
   const viewportRect = () => (stageRef.current ? stageRef.current.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 });
@@ -172,8 +185,8 @@ export function BeadCanvas(props) {
     const rect = canvas.getBoundingClientRect(); // transform 後の矩形
     const sx = canvas.width / rect.width;
     const sy = canvas.height / rect.height;
-    const x = Math.floor(((e.clientX - rect.left) * sx) / cellSize);
-    const y = Math.floor(((e.clientY - rect.top) * sy) / cellSize);
+    const x = Math.floor(((e.clientX - rect.left) * sx) / effectiveCellSize);
+    const y = Math.floor(((e.clientY - rect.top) * sy) / effectiveCellSize);
     if (x < 0 || y < 0 || x >= pattern.width || y >= pattern.height) return null;
     return { x, y };
   };
@@ -355,7 +368,7 @@ export function BeadCanvas(props) {
 
       ${interactive || fullscreen
         ? html`<div class="bead-canvas__draghint muted">
-            ${fullscreen ? '2本指で拡大・移動できます。' : ''}${
+            ${fullscreen ? '2本指で拡大・移動できます。' : '拡大は ＋ / − ボタン、または「⛶ 全画面」で2本指でできます。'}${
               checkMode
                 ? '1本指のドラッグ（押したまま動かす）でまとめてチェック／解除できます。'
                 : interactive

@@ -144,8 +144,7 @@ export function SettingsPanel(props) {
             <button
               type="button"
               class="btn btn--ghost btn--sm settings__crop-btn"
-              disabled=${!canCrop}
-              onClick=${() => canCrop && onOpenCrop && onOpenCrop()}
+              onClick=${() => onOpenCrop && onOpenCrop()}
             >
               範囲を調整…
             </button>

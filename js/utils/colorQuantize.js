@@ -91,7 +91,7 @@ function mergeTwo(a, b) {
 /**
  * 凝集型クラスタリングで最大色数まで減らす。
  * 長さ > maxColors の間、最近接2クラスタを count加重平均で統合する。
- * 性能ガード: entries.length > 400 のときは count上位400を残し、
+ * 性能ガード: entries.length > 256 のときは count上位256を残し、
  * 残りは最近傍クラスタへ畳んでから凝集する(O(n^2)の爆発を防止)。
  * @param {Array<{r:number,g:number,b:number,count:number}>} entries
  * @param {number} maxColors 1以上
@@ -105,7 +105,7 @@ export function reduceToMaxColors(entries, maxColors) {
 
   if (work.length <= limit) return work;
 
-  // --- 性能ガード: 多すぎる場合は上位400へ事前集約 ---
+  // --- 性能ガード: 多すぎる場合は上位256へ事前集約 ---
   const GUARD = 256;
   if (work.length > GUARD) {
     work.sort((a, b) => b.count - a.count);
