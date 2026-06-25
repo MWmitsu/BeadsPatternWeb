@@ -270,7 +270,8 @@ export function App() {
   const [beadListOpen, setBeadListOpen] = useState(false);
   const [qrShare, setQrShare] = useState(null); // { matrix, url } QRコード共有モーダル
   const [textStudioOpen, setTextStudioOpen] = useState(false); // 文字デザインモーダル
-  const [textStudioInitial, setTextStudioInitial] = useState(''); // 文字デザインの初期文字
+  const [textStudioInitial, setTextStudioInitial] = useState(null); // 文字デザインを開くときの初期設定
+  const [textComposition, setTextComposition] = useState(null); // 前回の文字デザイン設定(開き直しても保持)
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const noticeTimer = useRef(null);
@@ -443,9 +444,13 @@ export function App() {
     }
   };
 
-  // 文字デザインモーダルを開く（入力途中の文字を初期値に）
+  // 文字デザインモーダルを開く。前回の設定があれば復元し、無ければ入力途中の文字で開始する。
   const handleOpenTextStudio = (t) => {
-    setTextStudioInitial(typeof t === 'string' ? t : '');
+    if (textComposition) {
+      setTextStudioInitial(textComposition);
+    } else {
+      setTextStudioInitial({ text: typeof t === 'string' ? t : '' });
+    }
     setTextStudioOpen(true);
   };
 
@@ -1550,9 +1555,10 @@ export function App() {
       ${textStudioOpen &&
       html`
         <${TextStudioModal}
-          initialText=${textStudioInitial}
+          initialState=${textStudioInitial}
           onApply=${handleApplyTextComposition}
           onCancel=${() => setTextStudioOpen(false)}
+          onPersist=${setTextComposition}
         />
       `}
     </div>

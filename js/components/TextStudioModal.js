@@ -34,23 +34,25 @@ const MAX_CHARS = 20;
 const PREVIEW_MARGIN = 150;
 
 export function TextStudioModal(props) {
-  const { initialText = '', onApply, onCancel } = props;
+  const { initialState = {}, onApply, onCancel, onPersist } = props;
+  // 開き直しても消えないよう、前回の設定(initialState)から初期化する
+  const init = initialState || {};
 
-  const [text, setText] = useState(initialText);
-  const [fontKey, setFontKey] = useState('maru');
-  const [bold, setBold] = useState(true);
-  const [arrange, setArrange] = useState('row');
-  const [letterSpacing, setLetterSpacing] = useState(0); // -0.3 .. 0.6 (em)
-  const [fontScale, setFontScale] = useState(1); // 0.7 .. 1.4
-  const [lineGap, setLineGap] = useState(1.25); // 2行用
-  const [curve, setCurve] = useState(0.45); // アーチ/なみ用 0..1
-  const [globalColor, setGlobalColor] = useState('#1F1F1F');
-  const [outlineOn, setOutlineOn] = useState(false);
-  const [outlineColor, setOutlineColor] = useState('#FFFFFF');
-  const [longSide, setLongSide] = useState(48);
-  const [whiteBg, setWhiteBg] = useState(false);
+  const [text, setText] = useState(init.text != null ? init.text : '');
+  const [fontKey, setFontKey] = useState(init.fontKey || 'maru');
+  const [bold, setBold] = useState(init.bold != null ? init.bold : true);
+  const [arrange, setArrange] = useState(init.arrange || 'row');
+  const [letterSpacing, setLetterSpacing] = useState(init.letterSpacing != null ? init.letterSpacing : 0); // -0.3 .. 0.6 (em)
+  const [fontScale, setFontScale] = useState(init.fontScale != null ? init.fontScale : 1); // 0.7 .. 1.4
+  const [lineGap, setLineGap] = useState(init.lineGap != null ? init.lineGap : 1.25); // 2行用
+  const [curve, setCurve] = useState(init.curve != null ? init.curve : 0.45); // アーチ/なみ用 0..1
+  const [globalColor, setGlobalColor] = useState(init.globalColor || '#1F1F1F');
+  const [outlineOn, setOutlineOn] = useState(init.outlineOn != null ? init.outlineOn : false);
+  const [outlineColor, setOutlineColor] = useState(init.outlineColor || '#FFFFFF');
+  const [longSide, setLongSide] = useState(init.longSide || 48);
+  const [whiteBg, setWhiteBg] = useState(init.whiteBg != null ? init.whiteBg : false);
   const [selectedIndex, setSelectedIndex] = useState(null);
-  const [perChar, setPerChar] = useState({}); // { [index]: { color?, dy?, dx?, sizeMul?, fontKey? } }
+  const [perChar, setPerChar] = useState(init.perChar || {}); // { [index]: { color?, dy?, dx?, sizeMul?, fontKey? } }
   const [fontsTick, setFontsTick] = useState(0); // 同梱フォント読み込み完了でプレビューを描き直す
 
   // 使用中フォント（全体＋個別）を読み込み、完了したらプレビューを再描画する。
@@ -71,8 +73,9 @@ export function TextStudioModal(props) {
 
   const previewRef = useRef(null);
   const geomRef = useRef({ boxes: [], W: 0, H: 0, originX: 0, originY: 0 });
-  const prevTextRef = useRef(initialText);
+  const prevTextRef = useRef(init.text != null ? init.text : '');
   const dragRef = useRef(null); // ドラッグ中: { index, lastX, lastY, frame }
+  const compRef = useRef(null); // 最新の全設定スナップショット（閉じたとき親へ保存する）
   const [frameNonce, setFrameNonce] = useState(0); // ドラッグ終了で枠を解除して再描画
   const [revealed, setRevealed] = useState(() => new Set()); // 画面に出たフォントタイルだけ実フォントを読む
   const fontGridRef = useRef(null);
@@ -105,12 +108,18 @@ export function TextStudioModal(props) {
   // 白い文字＋透明背景は完成イメージで見えにくいので注意を出す
   const whiteOnTransparent = !whiteBg && chars.some((c) => (c.color || '').toUpperCase() === '#FFFFFF');
 
+  // 現在の全設定を毎レンダー記録（閉じたときにこれを親へ保存して、次回開いたとき復元する）
+  compRef.current = { text, fontKey, bold, arrange, letterSpacing, fontScale, lineGap, curve, globalColor, outlineOn, outlineColor, longSide, whiteBg, perChar };
+
   // モーダル表示中は背面ページのスクロールを止める（iOSで背景が一緒に動かない）
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, []);
+
+  // 閉じたとき（キャンセル/×/決定いずれでも）最新の設定を親へ保存し、次回開いたとき復元する
+  useEffect(() => () => { if (onPersist) onPersist(compRef.current); }, []);
 
   // 選択中の文字が範囲外になったら解除
   useEffect(() => {
