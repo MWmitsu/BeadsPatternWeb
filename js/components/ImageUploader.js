@@ -19,7 +19,7 @@ import { loadImageFile, fileToDataUrl } from '../utils/imageLoader.js';
  * @param {(message: string) => void} props.onError  読込失敗時のメッセージ通知
  */
 export function ImageUploader(props) {
-  const { onImage, originalUrl, sourceImageName, onError, onSample, onTextToImage, templates, onTemplate } = props;
+  const { onImage, originalUrl, sourceImageName, onError, onSample, onTextToImage, onOpenTextStudio, templates, onTemplate } = props;
 
   // 非表示の <input type="file"> を参照(ドロップ領域クリックで開く)
   const inputRef = useRef(null);
@@ -195,6 +195,16 @@ export function ImageUploader(props) {
                 文字から作る
               </button>
             </div>
+            ${onOpenTextStudio &&
+            html`
+              <button
+                type="button"
+                class="btn btn--ghost btn--sm uploader__text-studio"
+                onClick=${() => onOpenTextStudio(textInput)}
+              >
+                くわしく作る（フォント・配置）
+              </button>
+            `}
           </div>
         `}
 

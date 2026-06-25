@@ -41,6 +41,7 @@ import { ToolsPanel } from './components/ToolsPanel.js';
 import { BeadListModal } from './components/BeadListModal.js';
 import { QrModal } from './components/QrModal.js';
 import { makeQrMatrix } from './lib/qrcode.js';
+import { TextStudioModal } from './components/TextStudioModal.js';
 import { BEAD_PALETTES } from './data/beadPalettes.js';
 import { snapPatternToPalette } from './utils/beadMatch.js';
 import { makePlateMask } from './utils/plateShape.js';
@@ -218,6 +219,17 @@ function computeRects(image, w, h, fitMode, crop) {
   return { src: { sx: 0, sy: 0, sw: iw, sh: ih }, dest: { dx: 0, dy: 0, dw: w, dh: h } };
 }
 
+/** 変換に関わる設定の署名（自動プレビューの重複変換抑止に使う）。convertSig と同じ並び。 */
+function convertSignatureOf(s) {
+  const d = s.detection || {};
+  return [
+    s.width, s.height, s.fitMode,
+    s.backgroundAsWhite, s.removeBackground,
+    d.maxColors, d.colorDistanceThreshold, d.mergeMinorColors,
+    d.minorColorCountThreshold, d.dithering, d.contrastCorrection, d.outlineEnhancement,
+  ].join('|');
+}
+
 export function App() {
   // ---- 画像・図案 ----
   const [image, setImage] = useState(null); // HTMLImageElement(再変換用)
@@ -249,6 +261,7 @@ export function App() {
   const draftWarnedRef = useRef(false); // 自動保存の容量超過を一度だけ通知するため
   const editedRef = useRef(false); // 手動編集後か(自動プレビューで上書きしないため)
   const convertSigSkipRef = useRef(true); // 自動プレビュー: 初回(マウント時)はスキップ
+  const lastConvertSigRef = useRef(null); // 直近に変換した設定の署名(同一設定の重複自動変換を防ぐ)
 
   // ---- UI 状態 ----
   const [converting, setConverting] = useState(false);
@@ -256,6 +269,8 @@ export function App() {
   const [cropOpen, setCropOpen] = useState(false);
   const [beadListOpen, setBeadListOpen] = useState(false);
   const [qrShare, setQrShare] = useState(null); // { matrix, url } QRコード共有モーダル
+  const [textStudioOpen, setTextStudioOpen] = useState(false); // 文字デザインモーダル
+  const [textStudioInitial, setTextStudioInitial] = useState(''); // 文字デザインの初期文字
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const noticeTimer = useRef(null);
@@ -271,6 +286,7 @@ export function App() {
   const convertWith = (img, st = settings) => {
     if (!img) return;
     editedRef.current = false; // 変換すると手動編集はリセットされる(自動プレビュー再開)
+    lastConvertSigRef.current = convertSignatureOf(st); // この設定で変換済みと記録(自動プレビューの重複を防ぐ)
     setConverting(true);
     setError(null);
     // 「変換中…」表示を一度描画させてから重い処理に入る
@@ -418,6 +434,48 @@ export function App() {
         setOriginalUrl(dataUrl);
         setSourceImageName('文字「' + t.slice(0, 16) + '」');
         if (!title || title === '無題の図案') setTitle(t.slice(0, 20));
+        convertWith(img, next);
+      };
+      img.onerror = () => setError('文字の図案化に失敗しました。');
+      img.src = dataUrl;
+    } catch (e) {
+      setError('文字の図案化に失敗しました。');
+    }
+  };
+
+  // 文字デザインモーダルを開く（入力途中の文字を初期値に）
+  const handleOpenTextStudio = (t) => {
+    setTextStudioInitial(typeof t === 'string' ? t : '');
+    setTextStudioOpen(true);
+  };
+
+  // 文字デザインの結果（合成済みPNG）を図案にする
+  const handleApplyTextComposition = (payload) => {
+    setTextStudioOpen(false);
+    const { dataUrl, W, H, longSide, whiteBg, text } = payload || {};
+    if (!dataUrl) { setError('文字の図案化に失敗しました。'); return; }
+    try {
+      const img = new Image();
+      img.onload = () => {
+        const ar = (img.naturalWidth || W || 1) / (img.naturalHeight || H || 1);
+        const LONG = longSide || 48;
+        let gw, gh;
+        if (ar >= 1) { gw = LONG; gh = Math.max(8, Math.round(LONG / ar)); }
+        else { gh = LONG; gw = Math.max(8, Math.round(LONG * ar)); }
+        const next = {
+          ...settings,
+          width: clampDim(gw),
+          height: clampDim(gh),
+          fitMode: 'contain',
+          backgroundAsWhite: !!whiteBg,
+          removeBackground: false,
+        };
+        setSettings(next);
+        setImage(img);
+        setOriginalUrl(dataUrl);
+        const t = String(text || '').trim();
+        setSourceImageName('文字「' + t.slice(0, 16) + '」');
+        if (!title || title === '無題の図案') setTitle(t.slice(0, 20) || '文字の図案');
         convertWith(img, next);
       };
       img.onerror = () => setError('文字の図案化に失敗しました。');
@@ -1032,6 +1090,8 @@ export function App() {
   useEffect(() => {
     if (convertSigSkipRef.current) { convertSigSkipRef.current = false; return; }
     if (!image || editedRef.current || doneSet.size > 0) return;
+    // 直前に同じ設定で変換済みなら何もしない(明示変換直後の重複自動変換を防ぐ)
+    if (convertSig === lastConvertSigRef.current) return;
     const id = setTimeout(() => {
       if (image && !editedRef.current && doneSet.size === 0) convertWith(image);
     }, 500);
@@ -1282,6 +1342,7 @@ export function App() {
             onError=${setError}
             onSample=${handleSample}
             onTextToImage=${handleTextToImage}
+            onOpenTextStudio=${handleOpenTextStudio}
             templates=${TEMPLATES}
             onTemplate=${handleTemplate}
           />
@@ -1483,6 +1544,15 @@ export function App() {
           onClose=${() => setQrShare(null)}
           onCopy=${handleQrCopy}
           onSave=${handleQrSave}
+        />
+      `}
+
+      ${textStudioOpen &&
+      html`
+        <${TextStudioModal}
+          initialText=${textStudioInitial}
+          onApply=${handleApplyTextComposition}
+          onCancel=${() => setTextStudioOpen(false)}
         />
       `}
     </div>

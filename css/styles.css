@@ -1028,6 +1028,135 @@ input.warn--error {
   border-top: 1px solid var(--border);
 }
 
+.uploader__text-studio { margin-top: 8px; width: 100%; }
+
+/* 文字をデザインする モーダル */
+.textstudio {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+.textstudio__sheet {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 460px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.textstudio__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.textstudio__close {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1.4em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.textstudio__body { padding: 12px 14px; overflow-y: auto; }
+.textstudio__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+/* font-size は 16px 以上にして iOS Safari のフォーカス時自動ズームを防ぐ
+   （input[type=text]{font:inherit} を上書きするため input.〜 で詳細度を上げる） */
+input.textstudio__text { width: 100%; font-size: 16px; }
+.textstudio__preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 110px;
+  margin: 10px 0 4px;
+  padding: 8px;
+  background: repeating-conic-gradient(#f4f4f4 0% 25%, #fff 0% 50%) 0 / 18px 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.textstudio__canvas {
+  max-width: 100%;
+  max-height: 240px;
+  height: auto;
+  image-rendering: auto;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.textstudio__empty { padding: 28px 8px; text-align: center; }
+.textstudio__tip { font-size: 0.8em; margin: 2px 0 6px; text-align: center; }
+
+.textstudio__charedit {
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.textstudio__charedit-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.textstudio__charedit-head .badge { margin-right: auto; }
+.textstudio__nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
+.textstudio__nudge-pad { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.textstudio__nudge-mid { display: flex; gap: 3px; }
+.textstudio__nudge .btn { min-width: 38px; }
+.textstudio__size-btns { display: flex; gap: 6px; }
+.textstudio__charcolor, .textstudio__charfont { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+.textstudio__tiles { display: flex; flex-wrap: wrap; gap: 6px; }
+.textstudio__font-tiles .textstudio__tile { width: 64px; }
+.textstudio__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 56px;
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  line-height: 1.2;
+  color: inherit;
+}
+.textstudio__tile--on { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.04) inset; background: rgba(26, 163, 122, 0.08); }
+.textstudio__tile--text { font-size: 0.85em; text-align: center; }
+.textstudio__tile-sample { font-size: 1.7em; line-height: 1; }
+.textstudio__tile-label { font-size: 0.72em; }
+
+.textstudio__slider { display: flex; align-items: center; gap: 8px; }
+.textstudio__slider input[type="range"] { flex: 1 1 auto; min-width: 0; }
+.textstudio__slider .muted { font-size: 0.78em; white-space: nowrap; }
+
+.textstudio__swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.textstudio__swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  padding: 0;
+}
+.textstudio__swatch--on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+
 /* 印刷: 分割の操作と区画 */
 .print-controls__opt {
   display: inline-flex;
