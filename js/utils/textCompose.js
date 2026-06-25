@@ -118,9 +118,11 @@ function layout(arrange, items, opts) {
  * 文字デザインを透明（または白地）キャンバスへ描く。
  * @param {Array<{ch:string,color:string,fontKey:string,dx:number,dy:number,sizeMul:number}>} chars 継承解決済みの各文字
  * @param {{bold:boolean,arrange:string,letterSpacing:number,fontScale:number,lineGap:number,curve:number,whiteBg:boolean,outline:{on:boolean,color:string}}} global
- * @returns {{ canvas:HTMLCanvasElement, boxes:Array<{x:number,y:number,w:number,h:number}>, W:number, H:number } | null}
+ * @param {{ margin?:number, frame?:{W:number,H:number,originX:number,originY:number} }} [opts]
+ *   margin: 外接矩形に追加する余白(px)。frame: キャンバス寸法と原点を固定（ドラッグ中のブレ防止）。
+ * @returns {{ canvas:HTMLCanvasElement, boxes:Array<{x:number,y:number,w:number,h:number}>, W:number, H:number, originX:number, originY:number } | null}
  */
-export function renderCompositionToCanvas(chars, global) {
+export function renderCompositionToCanvas(chars, global, opts = {}) {
   const { bold, arrange, letterSpacing, fontScale, lineGap, curve, whiteBg, outline } = global;
   const list = (chars || []).filter((c) => c && c.ch && c.ch !== '\n');
   const n = list.length;
@@ -158,12 +160,22 @@ export function renderCompositionToCanvas(chars, global) {
     maxY = Math.max(maxY, cy + (size * 0.42 + outlineW));
   }
 
-  const padX = BASE * 0.28;
-  const padY = BASE * 0.2;
-  const W = Math.max(1, Math.ceil(maxX - minX + padX * 2));
-  const H = Math.max(1, Math.ceil(maxY - minY + padY * 2));
-  const offX = -minX + padX;
-  const offY = -minY + padY;
+  let W, H, offX, offY;
+  if (opts.frame) {
+    // 寸法・原点を固定（ドラッグ中はこれを使い、文字を動かしてもキャンバスが揺れない）
+    W = opts.frame.W;
+    H = opts.frame.H;
+    offX = opts.frame.originX;
+    offY = opts.frame.originY;
+  } else {
+    const padX = BASE * 0.28;
+    const padY = BASE * 0.2;
+    const m = opts.margin || 0;
+    W = Math.max(1, Math.ceil(maxX - minX + padX * 2 + m * 2));
+    H = Math.max(1, Math.ceil(maxY - minY + padY * 2 + m * 2));
+    offX = -minX + padX + m;
+    offY = -minY + padY + m;
+  }
 
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -200,5 +212,5 @@ export function renderCompositionToCanvas(chars, global) {
     });
   }
 
-  return { canvas, boxes, W, H };
+  return { canvas, boxes, W, H, originX: offX, originY: offY };
 }

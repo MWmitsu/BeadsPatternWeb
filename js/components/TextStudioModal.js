@@ -10,7 +10,7 @@
 
 import { html, useState, useEffect, useRef, useMemo } from '../lib/html.js';
 import { FONT_PRESETS, getFont } from '../data/textFonts.js';
-import { renderCompositionToCanvas, splitGraphemes } from '../utils/textCompose.js';
+import { renderCompositionToCanvas, splitGraphemes, NUDGE_STEP } from '../utils/textCompose.js';
 
 const ARRANGES = [
   { key: 'row', label: '横ならべ' },
@@ -29,6 +29,9 @@ const LONG_SIDES = [
 ];
 
 const MAX_CHARS = 20;
+// プレビューに足す余白(px)。ドラッグで文字を動かす余地（大きいほど端で見切れにくい）。
+// 確定時の図案には付かない（apply は余白なしのtightで描く）。
+const PREVIEW_MARGIN = 150;
 
 export function TextStudioModal(props) {
   const { initialText = '', onApply, onCancel } = props;
@@ -67,8 +70,12 @@ export function TextStudioModal(props) {
   }, [fontKey, perChar]);
 
   const previewRef = useRef(null);
-  const geomRef = useRef({ boxes: [], W: 0, H: 0 });
+  const geomRef = useRef({ boxes: [], W: 0, H: 0, originX: 0, originY: 0 });
   const prevTextRef = useRef(initialText);
+  const dragRef = useRef(null); // ドラッグ中: { index, lastX, lastY, frame }
+  const [frameNonce, setFrameNonce] = useState(0); // ドラッグ終了で枠を解除して再描画
+  const [revealed, setRevealed] = useState(() => new Set()); // 画面に出たフォントタイルだけ実フォントを読む
+  const fontGridRef = useRef(null);
 
   // 見た目の1文字に分解（最大20字）。1レンダーにつき1回だけ分割する。
   const allGraphemes = useMemo(() => splitGraphemes(text), [text]);
@@ -110,17 +117,52 @@ export function TextStudioModal(props) {
     if (selectedIndex != null && selectedIndex >= graphemes.length) setSelectedIndex(null);
   }, [graphemes.length, selectedIndex]);
 
+  // フォントタイルは「グリッドに見えている分だけ」実フォントを読み込む（多数のフォントを
+  // 一度にダウンロードしないための遅延読込）。スクロールで近づいたものを順次読み込む。
+  useEffect(() => {
+    const grid = fontGridRef.current;
+    if (!grid) return;
+    const reveal = () => {
+      const gr = grid.getBoundingClientRect();
+      const m = 40; // 画面外でも少し近いものは先読み（多すぎる一括DLを避ける）
+      const vis = [];
+      grid.querySelectorAll('[data-fontkey]').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.bottom >= gr.top - m && r.top <= gr.bottom + m) vis.push(el.getAttribute('data-fontkey'));
+      });
+      setRevealed((prev) => {
+        let changed = false;
+        const n = new Set(prev);
+        vis.forEach((k) => { if (k && !n.has(k)) { n.add(k); changed = true; } });
+        return changed ? n : prev; // 変化なしなら同じ参照を返し再描画しない
+      });
+    };
+    reveal();
+    const t1 = setTimeout(reveal, 60);
+    const t2 = setTimeout(reveal, 300);
+    grid.addEventListener('scroll', reveal, { passive: true });
+    window.addEventListener('resize', reveal);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      grid.removeEventListener('scroll', reveal);
+      window.removeEventListener('resize', reveal);
+    };
+  }, []);
+
   // プレビュー再描画（確定と同一レンダラ）
   useEffect(() => {
     const cv = previewRef.current;
     if (!cv) return;
     const ctx = cv.getContext('2d');
-    const res = renderCompositionToCanvas(chars, global);
+    // ドラッグ中は枠を固定（文字を動かしてもキャンバスが揺れない）。通常は余白付きで描く。
+    const opts = dragRef.current ? { frame: dragRef.current.frame } : { margin: PREVIEW_MARGIN };
+    const res = renderCompositionToCanvas(chars, global, opts);
     if (!res) {
       cv.width = 16;
       cv.height = 16;
       ctx.clearRect(0, 0, 16, 16);
-      geomRef.current = { boxes: [], W: 0, H: 0 };
+      geomRef.current = { boxes: [], W: 0, H: 0, originX: 0, originY: 0 };
       return;
     }
     cv.width = res.W;
@@ -136,7 +178,7 @@ export function TextStudioModal(props) {
       }
     }
     ctx.drawImage(res.canvas, 0, 0);
-    geomRef.current = { boxes: res.boxes, W: res.W, H: res.H };
+    geomRef.current = { boxes: res.boxes, W: res.W, H: res.H, originX: res.originX, originY: res.originY };
     if (selectedIndex != null && res.boxes[selectedIndex]) {
       const b = res.boxes[selectedIndex];
       ctx.save();
@@ -146,9 +188,9 @@ export function TextStudioModal(props) {
       ctx.strokeRect(b.x, b.y, b.w, b.h);
       ctx.restore();
     }
-  }, [chars, bold, arrange, letterSpacing, fontScale, lineGap, curve, whiteBg, outlineOn, outlineColor, selectedIndex, fontsTick]);
+  }, [chars, bold, arrange, letterSpacing, fontScale, lineGap, curve, whiteBg, outlineOn, outlineColor, selectedIndex, fontsTick, frameNonce]);
 
-  // プレビュー上のタップで文字を選択
+  // プレビュー上のタップ＝文字を選択、そのままドラッグ＝その字を移動
   const onPreviewPointerDown = (e) => {
     const cv = previewRef.current;
     if (!cv) return;
@@ -156,14 +198,59 @@ export function TextStudioModal(props) {
     if (!rect.width || !rect.height) return;
     const px = (e.clientX - rect.left) * (cv.width / rect.width);
     const py = (e.clientY - rect.top) * (cv.height / rect.height);
-    const { boxes } = geomRef.current;
+    const g = geomRef.current;
     let hit = null;
-    for (let i = 0; i < boxes.length; i++) {
-      const b = boxes[i];
+    for (let i = 0; i < g.boxes.length; i++) {
+      const b = g.boxes[i];
       // break しない: 重なり時は後に描いた（前面の）文字＝高index を選ぶ
       if (px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) hit = i;
     }
     setSelectedIndex(hit);
+    if (hit != null) {
+      // ドラッグ開始: いまの枠を固定して、文字を動かしてもキャンバスが揺れないようにする
+      dragRef.current = {
+        index: hit,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        frame: { W: g.W, H: g.H, originX: g.originX, originY: g.originY },
+      };
+      if (cv.setPointerCapture) { try { cv.setPointerCapture(e.pointerId); } catch (_) {} }
+    }
+  };
+
+  const onPreviewPointerMove = (e) => {
+    const d = dragRef.current;
+    const cv = previewRef.current;
+    if (!d || !cv) return;
+    const rect = cv.getBoundingClientRect();
+    if (!rect.width) return;
+    const scaleX = cv.width / rect.width;
+    const scaleY = cv.height / rect.height;
+    // 画面上の移動量 → デザイン座標 px → ナッジ段（STEP単位）の連続値
+    const ddx = ((e.clientX - d.lastX) * scaleX) / NUDGE_STEP;
+    const ddy = ((e.clientY - d.lastY) * scaleY) / NUDGE_STEP;
+    d.lastX = e.clientX;
+    d.lastY = e.clientY;
+    const i = d.index;
+    setPerChar((pc) => {
+      const cur = pc[i] || {};
+      return { ...pc, [i]: { ...cur, dx: (cur.dx || 0) + ddx, dy: (cur.dy || 0) + ddy } };
+    });
+  };
+
+  const onPreviewPointerUp = () => {
+    const d = dragRef.current;
+    if (!d) return;
+    const i = d.index;
+    dragRef.current = null;
+    // 指を離したら最寄りの0.5段にスナップして格子をそろえる
+    setPerChar((pc) => {
+      const cur = pc[i];
+      if (!cur) return pc;
+      const snap = (v) => Math.round((v || 0) * 2) / 2;
+      return { ...pc, [i]: { ...cur, dx: snap(cur.dx), dy: snap(cur.dy) } };
+    });
+    setFrameNonce((n) => n + 1); // 枠を解除してぴったり寸法で描き直す
   };
 
   // 1文字の個別上書き
@@ -249,10 +336,13 @@ export function TextStudioModal(props) {
                   ref=${previewRef}
                   class="textstudio__canvas"
                   onPointerDown=${onPreviewPointerDown}
+                  onPointerMove=${onPreviewPointerMove}
+                  onPointerUp=${onPreviewPointerUp}
+                  onPointerCancel=${onPreviewPointerUp}
                 ></canvas>`
               : html`<div class="textstudio__empty muted">ここに文字を入力すると、図案のプレビューが出ます。</div>`}
           </div>
-          ${hasContent ? html`<p class="textstudio__tip muted">プレビューの文字をタップすると、その字だけ調整できます。</p>` : null}
+          ${hasContent ? html`<p class="textstudio__tip muted">文字を<b>タップ</b>するとその字を調整できます。<b>そのまま指やマウスでドラッグ</b>すると、好きな位置へ動かせます。</p>` : null}
 
           <!-- 選択中の1文字の調整 -->
           ${sel != null &&
@@ -311,15 +401,16 @@ export function TextStudioModal(props) {
 
           <!-- フォント選択 -->
           <div class="field">
-            <span class="field__label">フォント</span>
-            <div class="textstudio__tiles textstudio__font-tiles">
+            <span class="field__label">フォント（${FONT_PRESETS.length}種）</span>
+            <div class="textstudio__tiles textstudio__font-tiles" ref=${fontGridRef}>
               ${FONT_PRESETS.map(
                 (f) => html`<button
                   key=${f.key}
+                  data-fontkey=${f.key}
                   class=${'textstudio__tile' + (fontKey === f.key ? ' textstudio__tile--on' : '')}
                   onClick=${() => setFontKey(f.key)}
                 >
-                  <span class="textstudio__tile-sample" style=${`font-family:${f.stack};${f.forceBold ? 'font-weight:bold;' : ''}`}>${f.sample}</span>
+                  <span class="textstudio__tile-sample" style=${`font-family:${revealed.has(f.key) ? f.stack : 'sans-serif'};${f.forceBold ? 'font-weight:bold;' : ''}`}>${f.sample}</span>
                   <span class="textstudio__tile-label">${f.label}</span>
                 </button>`
               )}
