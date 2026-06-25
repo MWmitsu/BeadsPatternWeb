@@ -400,7 +400,8 @@ input.warn--error {
   gap: 8px;
   margin-bottom: 10px;
 }
-.bead-canvas__zoom { display: flex; align-items: center; gap: 6px; }
+/* 狭いiPhone画面ではボタンが多いと横にはみ出すので折り返す */
+.bead-canvas__zoom { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .bead-canvas__zoom-btn { min-width: 34px; font-size: 1.05em; }
 .bead-canvas__zoom-value { min-width: 44px; text-align: center; font-size: 0.85em; color: var(--muted); }
 .bead-canvas__stage {
