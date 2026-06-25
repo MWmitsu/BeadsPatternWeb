@@ -19,7 +19,7 @@ import { loadImageFile, fileToDataUrl } from '../utils/imageLoader.js';
  * @param {(message: string) => void} props.onError  読込失敗時のメッセージ通知
  */
 export function ImageUploader(props) {
-  const { onImage, originalUrl, sourceImageName, onError, onSample, onTextToImage, onOpenTextStudio, templates, onTemplate } = props;
+  const { onImage, originalUrl, sourceImageName, onError, onTextToImage, onOpenTextStudio, templates, onTemplate } = props;
 
   // 非表示の <input type="file"> を参照(ドロップ領域クリックで開く)
   const inputRef = useRef(null);
@@ -27,6 +27,11 @@ export function ImageUploader(props) {
   const [dragover, setDragover] = useState(false);
   // 「文字から作る」の入力テキスト
   const [textInput, setTextInput] = useState('');
+  // 副機能（サンプル絵柄 / 文字）は既定で隠し、ボタンで開く（本機能=画像を分かりやすく）
+  const [showSamples, setShowSamples] = useState(false);
+  const [showText, setShowText] = useState(false);
+  const hasText = !!(onTextToImage || onOpenTextStudio);
+  const hasSamples = !!(onTemplate && templates && templates.length > 0);
 
   const submitText = () => {
     const t = textInput.trim();
@@ -160,41 +165,72 @@ export function ImageUploader(props) {
           style=${{ display: 'none' }}
         />
 
-        ${onSample &&
+        ${(hasSamples || hasText) &&
         html`
-          <div class="uploader__actions">
-            <button
+          <div class="uploader__subactions">
+            ${hasSamples &&
+            html`<button
               type="button"
-              class="btn btn--ghost btn--sm uploader__sample"
-              onClick=${() => onSample()}
-            >
-              サンプルで試す
-            </button>
+              class=${'btn btn--ghost btn--sm' + (showSamples ? ' btn--active' : '')}
+              onClick=${() => setShowSamples((v) => !v)}
+            >${showSamples ? '▲ サンプル（絵柄）をとじる' : '🎨 サンプル（絵柄）で試す'}</button>`}
+            ${hasText &&
+            html`<button
+              type="button"
+              class=${'btn btn--ghost btn--sm' + (showText ? ' btn--active' : '')}
+              onClick=${() => setShowText((v) => !v)}
+            >${showText ? '▲ 文字入力をとじる' : '🔤 文字・名前で作る'}</button>`}
           </div>
         `}
 
-        ${onTextToImage &&
+        ${hasSamples && showSamples &&
+        html`
+          <div class="uploader__templates">
+            <div class="uploader__text-label muted">すきな絵柄をえらぶと、その図案ができます。</div>
+            <div class="uploader__template-grid">
+              ${templates.map(
+                (t) => html`
+                  <button
+                    type="button"
+                    key=${t.id}
+                    class="btn btn--ghost btn--sm uploader__template-btn"
+                    title=${t.name + 'の図案を作る'}
+                    onClick=${() => onTemplate(t.id)}
+                  >
+                    <span class="uploader__template-emoji">${t.emoji}</span>
+                    <span class="uploader__template-name">${t.name}</span>
+                  </button>
+                `
+              )}
+            </div>
+          </div>
+        `}
+
+        ${hasText && showText &&
         html`
           <div class="uploader__text">
-            <div class="uploader__text-label muted">または 文字・名前から作る</div>
-            <div class="uploader__text-row">
-              <input
-                type="text"
-                class="uploader__text-input field"
-                placeholder="例: あい / LOVE"
-                value=${textInput}
-                onInput=${(e) => setTextInput(e.target.value)}
-                onKeyDown=${(e) => { if (e.key === 'Enter') { e.preventDefault(); submitText(); } }}
-              />
-              <button
-                type="button"
-                class="btn btn--sm uploader__text-btn"
-                disabled=${!textInput.trim()}
-                onClick=${submitText}
-              >
-                文字から作る
-              </button>
-            </div>
+            <div class="uploader__text-label muted">文字・名前から図案を作ります。</div>
+            ${onTextToImage &&
+            html`
+              <div class="uploader__text-row">
+                <input
+                  type="text"
+                  class="uploader__text-input field"
+                  placeholder="例: あい / LOVE"
+                  value=${textInput}
+                  onInput=${(e) => setTextInput(e.target.value)}
+                  onKeyDown=${(e) => { if (e.key === 'Enter') { e.preventDefault(); submitText(); } }}
+                />
+                <button
+                  type="button"
+                  class="btn btn--sm uploader__text-btn"
+                  disabled=${!textInput.trim()}
+                  onClick=${submitText}
+                >
+                  文字から作る
+                </button>
+              </div>
+            `}
             ${onOpenTextStudio &&
             html`
               <button
@@ -205,29 +241,6 @@ export function ImageUploader(props) {
                 くわしく作る（フォント・配置）
               </button>
             `}
-          </div>
-        `}
-
-        ${onTemplate && templates && templates.length > 0 &&
-        html`
-          <div class="uploader__templates">
-            <div class="uploader__text-label muted">または 作例（テンプレート）から作る</div>
-            <div class="uploader__template-grid">
-              ${templates.map(
-                (t) => html`
-                  <button
-                    type="button"
-                    key=${t.id}
-                    class="btn btn--ghost btn--sm uploader__template-btn"
-                    title=${t.name + 'の作例を作る'}
-                    onClick=${() => onTemplate(t.id)}
-                  >
-                    <span class="uploader__template-emoji">${t.emoji}</span>
-                    <span class="uploader__template-name">${t.name}</span>
-                  </button>
-                `
-              )}
-            </div>
           </div>
         `}
       </div>

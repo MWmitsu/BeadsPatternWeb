@@ -28,15 +28,12 @@ const TOOLS = [
   { k: 'bucket', label: 'ぬりつぶし', icon: '🪣' },
 ];
 
-function buildDrawOpts(viewMode, flags) {
-  const { showGrid, showNumbers, highlightColorId } = flags;
+function buildDrawOpts(viewMode) {
   switch (viewMode) {
-    case 'finished': return { showGrid: false, showNumbers: false, highlightColorId: null };
-    case 'numbers': return { showGrid: true, showNumbers: true, highlightColorId: null };
-    case 'grid': return { showGrid: true, showNumbers: false, highlightColorId: null };
-    case 'highlight': return { showGrid, showNumbers, highlightColorId };
-    case 'compare': return { showGrid: false, showNumbers: false, highlightColorId: null };
-    default: return { showGrid, showNumbers, highlightColorId: highlightColorId ?? null };
+    case 'grid': return { showGrid: true, showNumbers: false };
+    case 'compare': return { showGrid: false, showNumbers: false };
+    case 'numbers':
+    default: return { showGrid: true, showNumbers: true };
   }
 }
 
@@ -70,10 +67,7 @@ const clampScale = (s) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
 export function BeadCanvas(props) {
   const {
     pattern,
-    viewMode = 'finished',
-    showGrid = false,
-    showNumbers = false,
-    highlightColorId = null,
+    viewMode = 'numbers',
     originalUrl = null,
     cellSize = 16,
     onCellSizeChange,
@@ -139,10 +133,10 @@ export function BeadCanvas(props) {
     canvas.width = Math.max(1, pattern.width * cs);
     canvas.height = Math.max(1, pattern.height * cs);
     const ctx = canvas.getContext('2d');
-    const opts = buildDrawOpts(viewMode, { showGrid, showNumbers, highlightColorId });
+    const opts = buildDrawOpts(viewMode);
     // プレビューは背景を塗らず透明にし、空マス(透明背景)を市松模様で見せる
     drawPattern(ctx, pattern, { ...opts, cellSize: cs, doneSet, plateMask, round, backgroundColor: 'transparent' });
-  }, [pattern, viewMode, showGrid, showNumbers, highlightColorId, renderCell, doneSet, plateMask, round]);
+  }, [pattern, viewMode, renderCell, doneSet, plateMask, round]);
 
   // ---- 表示変換(全画面) ----
   const viewportRect = () => (stageRef.current ? stageRef.current.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 });

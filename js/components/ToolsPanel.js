@@ -36,8 +36,6 @@ export function ToolsPanel(props) {
     onToggleCheckMode,
     doneCount = 0,
     totalBeads = 0,
-    highlightColorId = null,
-    onMarkHighlightDone,
     onResetDone,
     onShareImage,
     onShareLink,
@@ -144,13 +142,6 @@ export function ToolsPanel(props) {
             <span class="muted tools__progress-num">${doneCount} / ${totalBeads}（${pct}%）</span>
           </div>
           <div class="tools__row tools__check-actions">
-            <button
-              type="button"
-              class="btn btn--sm btn--ghost"
-              disabled=${disabled || highlightColorId == null}
-              title=${highlightColorId == null ? 'まず色一覧で色を選んで強調表示してください。' : ''}
-              onClick=${() => onMarkHighlightDone && onMarkHighlightDone(true)}
-            >${highlightColorId != null ? `色番号${highlightColorId}を全部チェック` : '強調表示中の色を全部チェック'}</button>
             <button
               type="button"
               class="btn btn--sm btn--ghost"

@@ -1,7 +1,7 @@
 // ============================================================
 // ColorPalette: 検出された色パレットの一覧 / 編集 UI
 // ------------------------------------------------------------
-// 各色を行として表示し、HEX・色名の編集、色別ハイライトのトグル、
+// 各色を行として表示し、HEX・色名の編集、
 // 「この色で塗る」選択、他色への統合を行う。
 //
 // TODO(将来拡張): スポイト / 塗りつぶし / 範囲選択 / Undo-Redo / 作業チェック。
@@ -16,8 +16,6 @@ import { matchToPalette } from '../utils/beadMatch.js';
  * @param {Object} props
  * @param {import('../types.js').BeadColor[]} props.colors パレット色一覧
  * @param {number} props.totalBeads 透明背景を除いた総ビーズ数
- * @param {number|null} props.highlightColorId ハイライト中の色ID
- * @param {(colorId: number|null) => void} props.onHighlight 行クリックでハイライトをトグル
  * @param {number|null} props.editColorId キャンバス塗り用に選択中の色ID
  * @param {(colorId: number|null) => void} props.onSelectEditColor 塗り色の選択/解除
  * @param {(id: number, patch: {hex?: string, name?: string}) => void} props.onEditColor 色編集
@@ -29,8 +27,6 @@ export function ColorPalette(props) {
     totalBeads = 0,
     beadPaletteColors = null,
     bufferPercent = 0,
-    highlightColorId = null,
-    onHighlight,
     editColorId = null,
     onSelectEditColor,
     onEditColor,
@@ -57,8 +53,7 @@ export function ColorPalette(props) {
       </div>
       <div class="panel__body">
         <div class="palette__hint">
-          色番号や色見本をクリックすると、その色だけを強調表示します（並べる順番の確認に便利です）。
-          各行では、色の変更（カラーピッカーまたは色コード）、「この色で塗る」でのマスの塗り替え、「別の色とまとめる」もできます。
+          各行で、色の変更（カラーピッカーまたは色コード）、「この色で塗る」でのマスの塗り替え、「別の色とまとめる」ができます。
         </div>
         <div class="palette__list" role="list">
           ${colors.map(
@@ -66,12 +61,10 @@ export function ColorPalette(props) {
               <${PaletteRow}
                 key=${color.id}
                 color=${color}
-                isHighlighted=${highlightColorId === color.id}
                 isEditing=${editColorId === color.id}
                 colors=${colors}
                 beadPaletteColors=${beadPaletteColors}
                 bufferPercent=${bufferPercent}
-                onHighlight=${onHighlight}
                 onSelectEditColor=${onSelectEditColor}
                 onEditColor=${onEditColor}
                 onMergeColors=${onMergeColors}
@@ -94,12 +87,10 @@ export function ColorPalette(props) {
 function PaletteRow(props) {
   const {
     color,
-    isHighlighted,
     isEditing,
     colors,
     beadPaletteColors = null,
     bufferPercent = 0,
-    onHighlight,
     onSelectEditColor,
     onEditColor,
     onMergeColors,
@@ -120,11 +111,6 @@ function PaletteRow(props) {
   }, [color.hex]);
 
   const fg = textColorFor(color.hex);
-
-  // 行・見本クリックでハイライトをトグル
-  const toggleHighlight = () => {
-    if (onHighlight) onHighlight(isHighlighted ? null : color.id);
-  };
 
   // HEX確定: 有効なら正規化して親へ。無効なら元の値へ戻す。
   const commitHex = () => {
@@ -162,7 +148,6 @@ function PaletteRow(props) {
 
   const rowClass = [
     'palette__row',
-    isHighlighted ? 'palette__row--active' : '',
     isEditing ? 'palette__row--editing' : '',
   ]
     .filter(Boolean)
@@ -172,24 +157,13 @@ function PaletteRow(props) {
 
   return html`
     <div class=${rowClass} role="listitem">
-      <button
-        type="button"
-        class="palette__id"
-        title=${isHighlighted ? '強調表示をやめる' : 'この色を強調表示'}
-        onClick=${toggleHighlight}
-      >
-        ${color.id}
-      </button>
+      <span class="palette__id">${color.id}</span>
 
-      <button
-        type="button"
+      <span
         class="palette__swatch swatch"
         style=${`background:${color.hex};color:${fg}`}
-        title=${isHighlighted ? '強調表示をやめる' : 'この色を強調表示'}
-        onClick=${toggleHighlight}
-      >
-        ${isHighlighted ? '●' : ''}
-      </button>
+        title=${color.name || color.hex}
+      ></span>
 
       <div class="palette__edit">
         <div class="palette__hexrow">

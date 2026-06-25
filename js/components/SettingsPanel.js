@@ -178,20 +178,6 @@ export function SettingsPanel(props) {
         </div>
 
         <div class="field">
-          <label class="field__row toggle">
-            <input type="checkbox" checked=${settings.showGrid} onChange=${(e) => patch({ showGrid: e.target.checked })} />
-            <span class="field__label">マス目の線を表示</span>
-          </label>
-        </div>
-
-        <div class="field">
-          <label class="field__row toggle">
-            <input type="checkbox" checked=${settings.showNumbers} onChange=${(e) => patch({ showNumbers: e.target.checked })} />
-            <span class="field__label">色番号を表示</span>
-          </label>
-        </div>
-
-        <div class="field">
           <span class="field__label">背景の扱い</span>
           <div class="field__row settings__radio-row">
             <label class="settings__radio">

@@ -55,10 +55,8 @@ import { TEMPLATES, buildTemplate } from './data/templates.js';
 
 /** 中央の表示モードタブ定義 */
 const VIEW_MODES = [
-  { key: 'finished', label: '完成イメージ' },
   { key: 'numbers', label: '数字付き設計図' },
   { key: 'grid', label: 'マス目' },
-  { key: 'highlight', label: '色別に強調表示' },
   { key: 'compare', label: '元画像と比較' },
 ];
 
@@ -243,7 +241,6 @@ export function App() {
   // ---- 表示 ----
   const [viewMode, setViewMode] = useState('numbers');
   const [cellSize, setCellSize] = useState(12);
-  const [highlightColorId, setHighlightColorId] = useState(null);
   const [editColorId, setEditColorId] = useState(null);
   const [checkMode, setCheckMode] = useState(false); // 作業チェックモード
   const [doneSet, setDoneSet] = useState(() => new Set()); // 作業済みセルの index(y*width+x)
@@ -319,7 +316,6 @@ export function App() {
         });
         setPattern(maskOffShape(result, st.plateShape));
         setCreatedAt(new Date().toISOString());
-        setHighlightColorId(null);
         setEditColorId(null);
         setCheckMode(false);
         setDoneSet(new Set());
@@ -379,31 +375,6 @@ export function App() {
     const ratioMismatch = Math.abs(imgAR - gridAR) > 0.04 * gridAR;
     if ((settings.fitMode || 'crop') === 'crop' && ratioMismatch) {
       setCropOpen(true);
-    }
-  };
-
-  // サンプル画像で試す(その場で簡単な絵を生成して読み込む)
-  const handleSample = () => {
-    try {
-      // 高解像度(90の6倍)で描いてから縮小すると、境界がにじまずきれいに変換できる
-      const S = 6;
-      const c = document.createElement('canvas');
-      c.width = 90 * S;
-      c.height = 90 * S;
-      const x = c.getContext('2d');
-      x.scale(S, S);
-      x.fillStyle = '#7ec8ff'; x.fillRect(0, 0, 90, 90);        // 空
-      x.fillStyle = '#7ccf6a'; x.fillRect(0, 62, 90, 28);       // 地面
-      x.fillStyle = '#ffd93d'; x.beginPath(); x.arc(70, 20, 12, 0, Math.PI * 2); x.fill(); // 太陽
-      x.fillStyle = '#e6396b'; x.beginPath();                   // ハート
-      x.moveTo(42, 66); x.bezierCurveTo(10, 44, 20, 20, 42, 34); x.bezierCurveTo(64, 20, 74, 44, 42, 66); x.fill();
-      const url = c.toDataURL('image/png');
-      const img = new Image();
-      img.onload = () =>
-        handleImage({ image: img, dataUrl: url, name: 'サンプル.png', width: img.naturalWidth, height: img.naturalHeight });
-      img.src = url;
-    } catch (e) {
-      setError('サンプル画像の生成に失敗しました。');
     }
   };
 
@@ -696,7 +667,6 @@ export function App() {
       newDone.add(ny * newW + nx);
     }
     setDoneSet(newDone);
-    setHighlightColorId(null);
   };
   const handleFlipH = () => transformPattern((x, y, W) => [W - 1 - x, y], pattern.width, pattern.height);
   const handleFlipV = () => transformPattern((x, y, W, H) => [x, H - 1 - y], pattern.width, pattern.height);
@@ -743,16 +713,8 @@ export function App() {
       colors: res.colors,
       totalBeads: res.totalBeads,
     });
-    // 採番が変わるためハイライト/塗り色の選択は解除
-    setHighlightColorId(null);
+    // 採番が変わるため塗り色の選択は解除
     setEditColorId(null);
-  };
-
-  // ---- 色別ハイライト ----
-  const handleHighlight = (colorId) => {
-    setHighlightColorId(colorId);
-    if (colorId != null) setViewMode('highlight');
-    else if (viewMode === 'highlight') setViewMode('numbers');
   };
 
   // ---- 作業チェック(ドラッグ対応) ----
@@ -772,18 +734,6 @@ export function App() {
       }
     }
     if (changed) setDoneSet(next);
-  };
-  const handleMarkHighlightDone = (markDone) => {
-    if (!pattern || highlightColorId == null) return;
-    const next = new Set(doneSet);
-    for (const cell of pattern.cells) {
-      if (cell.colorId === highlightColorId) {
-        const idx = cell.y * pattern.width + cell.x;
-        if (markDone) next.add(idx);
-        else next.delete(idx);
-      }
-    }
-    setDoneSet(next);
   };
   const handleResetDone = () => setDoneSet(new Set());
 
@@ -809,7 +759,6 @@ export function App() {
     pushHistory();
     const res = snapPatternToPalette(pattern.cells, pattern.colors, pal.colors);
     setPattern({ ...pattern, cells: res.cells, colors: res.colors, totalBeads: res.totalBeads });
-    setHighlightColorId(null);
     setEditColorId(null);
     setDoneSet(new Set());
     flash(`市販ビーズ色（${pal.name}）に合わせました。`);
@@ -991,7 +940,6 @@ export function App() {
     setSourceImageName(null);
     setCurrentId(null);
     setCreatedAt(new Date().toISOString());
-    setHighlightColorId(null);
     setEditColorId(null);
     setCheckMode(false);
     setDoneSet(new Set());
@@ -1218,7 +1166,6 @@ export function App() {
       } else {
         setImage(null); // 元画像が無い(保存図案など)場合は持ち越さない
       }
-      setHighlightColorId(null);
       setEditColorId(null);
       setCheckMode(false);
       setDoneSet(new Set(Array.isArray(obj.done) ? obj.done : []));
@@ -1345,7 +1292,6 @@ export function App() {
             originalUrl=${originalUrl}
             sourceImageName=${sourceImageName}
             onError=${setError}
-            onSample=${handleSample}
             onTextToImage=${handleTextToImage}
             onOpenTextStudio=${handleOpenTextStudio}
             templates=${TEMPLATES}
@@ -1418,9 +1364,6 @@ export function App() {
           <${BeadCanvas}
             pattern=${pattern}
             viewMode=${viewMode}
-            showGrid=${settings.showGrid}
-            showNumbers=${settings.showNumbers}
-            highlightColorId=${highlightColorId}
             originalUrl=${originalUrl}
             cellSize=${cellSize}
             onCellSizeChange=${setCellSize}
@@ -1475,8 +1418,6 @@ export function App() {
             onToggleCheckMode=${toggleCheckMode}
             doneCount=${doneCount}
             totalBeads=${totalBeads}
-            highlightColorId=${highlightColorId}
-            onMarkHighlightDone=${handleMarkHighlightDone}
             onResetDone=${handleResetDone}
             onShareImage=${handleShareImage}
             onShareLink=${handleShareLink}
@@ -1487,8 +1428,6 @@ export function App() {
             totalBeads=${totalBeads}
             beadPaletteColors=${beadPaletteColors}
             bufferPercent=${settings.bufferPercent}
-            highlightColorId=${highlightColorId}
-            onHighlight=${handleHighlight}
             editColorId=${editColorId}
             onSelectEditColor=${selectEditColor}
             onEditColor=${handleEditColor}

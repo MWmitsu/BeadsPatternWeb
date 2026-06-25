@@ -738,6 +738,18 @@ input.warn--error {
 .help__steps li { margin: 4px 0; }
 
 .uploader__actions { margin-top: 10px; text-align: center; }
+/* 副機能（サンプル絵柄／文字）を開くボタン。本機能=画像と区別して控えめに */
+.uploader__subactions {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.uploader__subactions .btn { flex: 1 1 auto; }
+.uploader__subactions .btn--active { background: rgba(26, 163, 122, 0.12); border-color: var(--accent); }
 .uploader__text { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
 .uploader__text-label { font-size: 0.82em; margin-bottom: 5px; }
 .uploader__text-row { display: flex; gap: 6px; }
