@@ -1052,6 +1052,30 @@ export function App() {
     // eslint-disable-next-line
   }, [convertSig]);
 
+  // ---- 作業チェック中は画面を消さない(Wake Lock。対応端末のみ・非対応はサイレント) ----
+  // 実物のビーズを手で扱う間にスマホ画面がスリープしないようにする。
+  useEffect(() => {
+    if (!checkMode) return;
+    if (!('wakeLock' in navigator) || !navigator.wakeLock || !navigator.wakeLock.request) return;
+    let lock = null;
+    let stopped = false;
+    const acquire = () => {
+      navigator.wakeLock.request('screen').then((l) => {
+        if (stopped) { try { l.release(); } catch (_) {} return; }
+        lock = l;
+      }).catch(() => {});
+    };
+    acquire();
+    // iOSはタブ非表示で解除されるため、復帰時に取り直す
+    const onVis = () => { if (document.visibilityState === 'visible' && !stopped) acquire(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      stopped = true;
+      document.removeEventListener('visibilitychange', onVis);
+      if (lock) { try { lock.release(); } catch (_) {} }
+    };
+  }, [checkMode]);
+
   // ---- プロジェクト構築 ----
   const buildProjectBase = (withThumbnail) => {
     const id = currentId || draftIdRef.current;

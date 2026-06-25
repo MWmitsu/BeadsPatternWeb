@@ -473,6 +473,9 @@ input.warn--error {
   will-change: transform;
 }
 .bead-canvas__full { white-space: nowrap; }
+/* 作業チェックの開始ボタンは見つけやすいよう、未選択でもアクセント枠で少し目立たせる */
+.bead-canvas__check { white-space: nowrap; }
+.bead-canvas__check.btn--ghost { border-color: var(--accent); color: var(--accent-strong, var(--accent)); }
 
 /* 編集ツールバー(ペン/消しゴム/スポイト/バケツ + ミラー) */
 .bead-canvas__sep {

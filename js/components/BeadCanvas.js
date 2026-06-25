@@ -224,6 +224,12 @@ export function BeadCanvas(props) {
   const startGesture = () => {
     const pts = [...pointersRef.current.values()];
     if (pts.length < 2) return;
+    // 2本指ズーム開始時、1本目で付いてしまった「まだ動かしていない」チェックは取り消す
+    // （拡大しようとして1マス誤チェックされる事故を防ぐ）
+    const d = dragRef.current;
+    if (d && d.type === 'check' && !d.moved && d.last && onSetDone) {
+      onSetDone([d.last], !d.markDone);
+    }
     dragRef.current = null; // 描画を中断
     panRef.current = null;
     gestureRef.current = {
@@ -295,6 +301,7 @@ export function BeadCanvas(props) {
       if (d.type === 'check') onSetDone && onSetDone(line, d.markDone);
       else if (d.type === 'draw') onDraw && onDraw(line, d.erase);
       d.last = cell;
+      d.moved = true; // ドラッグ確定（ズーム誤チェックの取り消し対象から外す）
       return;
     }
     if (panRef.current) {
@@ -361,9 +368,11 @@ export function BeadCanvas(props) {
           <button type="button" class="btn btn--ghost btn--sm bead-canvas__zoom-fit" onClick=${doFit}>フィット</button>
           <button type="button" class="btn btn--ghost btn--sm bead-canvas__full"
             onClick=${() => setFullscreen((v) => !v)}>${fullscreen ? '✕ 閉じる' : '⛶ 全画面'}</button>
-          ${fullscreen && onToggleCheckMode
-            ? html`<button type="button" class=${'btn btn--sm ' + (checkMode ? 'btn--primary' : 'btn--ghost')}
-                onClick=${() => onToggleCheckMode()}>${checkMode ? 'チェック中' : 'チェック'}</button>`
+          ${onToggleCheckMode
+            ? html`<button type="button"
+                class=${'btn btn--sm bead-canvas__check ' + (checkMode ? 'btn--primary' : 'btn--ghost')}
+                title="作ったマスをタップして消し込みチェックします"
+                onClick=${() => onToggleCheckMode()}>${checkMode ? '✓ チェック中' : '✓ 作業チェック'}</button>`
             : null}
         </div>
         <div class="bead-canvas__info muted">
@@ -400,7 +409,7 @@ export function BeadCanvas(props) {
         ? html`<div class="bead-canvas__draghint muted">
             ${fullscreen ? '2本指で拡大・移動できます。' : '拡大は ＋ / − ボタン、または「⛶ 全画面」で2本指でできます。'}${
               checkMode
-                ? '1本指のドラッグ（押したまま動かす）でまとめてチェック／解除できます。'
+                ? 'マスをタップすると印が付きます（もう一度タップで消えます）。1本指のドラッグでまとめてチェックできます。' + (fullscreen ? '' : '「⛶ 全画面」にすると大きく押せます。')
                 : interactive
                 ? activeTool === 'eyedropper'
                   ? 'マスをタップすると、その色を取り出せます。'
