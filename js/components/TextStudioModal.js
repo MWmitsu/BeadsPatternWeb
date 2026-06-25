@@ -48,6 +48,23 @@ export function TextStudioModal(props) {
   const [whiteBg, setWhiteBg] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [perChar, setPerChar] = useState({}); // { [index]: { color?, dy?, dx?, sizeMul?, fontKey? } }
+  const [fontsTick, setFontsTick] = useState(0); // 同梱フォント読み込み完了でプレビューを描き直す
+
+  // 使用中フォント（全体＋個別）を読み込み、完了したらプレビューを再描画する。
+  // webフォントは非同期読込なので、これが無いとcanvasが代替フォントのまま固まる。
+  useEffect(() => {
+    if (!document.fonts || !document.fonts.load) return;
+    const fams = new Set([getFont(fontKey).family]);
+    Object.values(perChar).forEach((o) => { if (o && o.fontKey) fams.add(getFont(o.fontKey).family); });
+    let cancelled = false;
+    fams.forEach((fam) => {
+      if (!fam) return;
+      document.fonts.load(`24px '${fam}'`, 'あいうえお国Aa0').then(() => {
+        if (!cancelled) setFontsTick((t) => t + 1);
+      }).catch(() => {});
+    });
+    return () => { cancelled = true; };
+  }, [fontKey, perChar]);
 
   const previewRef = useRef(null);
   const geomRef = useRef({ boxes: [], W: 0, H: 0 });
@@ -129,7 +146,7 @@ export function TextStudioModal(props) {
       ctx.strokeRect(b.x, b.y, b.w, b.h);
       ctx.restore();
     }
-  }, [chars, bold, arrange, letterSpacing, fontScale, lineGap, curve, whiteBg, outlineOn, outlineColor, selectedIndex]);
+  }, [chars, bold, arrange, letterSpacing, fontScale, lineGap, curve, whiteBg, outlineOn, outlineColor, selectedIndex, fontsTick]);
 
   // プレビュー上のタップで文字を選択
   const onPreviewPointerDown = (e) => {
@@ -185,7 +202,15 @@ export function TextStudioModal(props) {
     setText(next);
   };
 
-  const apply = () => {
+  const apply = async () => {
+    // 確定前に使用中フォントの読み込みを待つ（最終PNGが代替フォントにならないように）
+    try {
+      if (document.fonts && document.fonts.load) {
+        const fams = new Set([getFont(fontKey).family]);
+        Object.values(perChar).forEach((o) => { if (o && o.fontKey) fams.add(getFont(o.fontKey).family); });
+        await Promise.all([...fams].map((fam) => document.fonts.load(`24px '${fam}'`, text || 'あ').catch(() => {})));
+      }
+    } catch (_) { /* 読み込み失敗時もそのまま描画（代替フォント） */ }
     const res = renderCompositionToCanvas(chars, global);
     if (!res) return;
     const dataUrl = res.canvas.toDataURL('image/png');

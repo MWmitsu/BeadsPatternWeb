@@ -1,0 +1,22 @@
+/* ============================================================
+   かわいいフォント（OFLライセンス・ローカル同梱・実行時CDN不使用）
+   ------------------------------------------------------------
+   日本語フォントは「かな+ASCII+全角+記号」にサブセット済み（軽量化）。
+   サブセット外の漢字などは、各stackの後続フォント（端末のまるゴシック等）へ
+   フォールバックする。font-display:swap で読み込み中も文字が出る。
+   ライセンス・帰属は fonts/OFL-NOTICE.txt を参照。
+   ============================================================ */
+@font-face{font-family:'BP Hachi';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/hachi.woff2') format('woff2');}
+@font-face{font-family:'BP Dot';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/dot.woff2') format('woff2');}
+@font-face{font-family:'BP Yusei';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/yusei.woff2') format('woff2');}
+@font-face{font-family:'BP RocknRoll';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/rocknroll.woff2') format('woff2');}
+@font-face{font-family:'BP Reggae';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/reggae.woff2') format('woff2');}
+@font-face{font-family:'BP Mochiy';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/mochiy.woff2') format('woff2');}
+@font-face{font-family:'BP Yomogi';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/yomogi.woff2') format('woff2');}
+@font-face{font-family:'BP Stick';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/stick.woff2') format('woff2');}
+@font-face{font-family:'BP Kaisei';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/kaisei.woff2') format('woff2');}
+@font-face{font-family:'BP Pacifico';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/pacifico.woff2') format('woff2');}
+@font-face{font-family:'BP Pixel';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/pixel.woff2') format('woff2');}
+@font-face{font-family:'BP Bungee';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/bungee.woff2') format('woff2');}
+@font-face{font-family:'BP Bubble';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/bubble.woff2') format('woff2');}
+@font-face{font-family:'BP Gloria';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/gloria.woff2') format('woff2');}

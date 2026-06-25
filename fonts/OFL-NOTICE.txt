@@ -1,0 +1,29 @@
+同梱フォントについて / Bundled fonts notice
+============================================
+
+このフォルダの *.woff2 は、SIL Open Font License 1.1 (OFL) で配布されている
+オープンソースフォントを、本アプリ用に「かな＋ASCII＋記号」等へサブセット
+（必要字種のみ抽出）して woff2 化したものです。各フォントの著作権は
+それぞれの作者に帰属し、OFL 1.1 の条件で再配布しています。
+OFL 1.1 全文: https://openfontlicense.org/
+
+入手元はいずれも Google Fonts (https://github.com/google/fonts, ofl/<name>)。
+
+ファイル → フォント名（作者/プロジェクト）:
+  hachi.woff2     Hachi Maru Pop  (Naru Suzuki / Fontworks)
+  dot.woff2       DotGothic16     (Fontworks)
+  yusei.woff2     Yusei Magic     (Tanukifont)
+  rocknroll.woff2 RocknRoll One   (Fontworks)
+  reggae.woff2    Reggae One      (Fontworks)
+  mochiy.woff2    Mochiy Pop One  (Fontworks)
+  yomogi.woff2    Yomogi          (Otsuka Akari)
+  stick.woff2     Stick           (Fontworks)
+  kaisei.woff2    Kaisei Decol    (Font Zone / Yui Kimura)
+  pacifico.woff2  Pacifico        (Vernon Adams)
+  pixel.woff2     Press Start 2P  (CodeMan38)
+  bungee.woff2    Bungee          (David Jonathan Ross)
+  bubble.woff2    Bubblegum Sans  (Angelina Sanchez)
+  gloria.woff2    Gloria Hallelujah (Kimberly Geswein)
+
+各フォントの完全なライセンス（著作権表記を含む OFL.txt）は、上記 Google Fonts
+リポジトリの各 ofl/<name>/OFL.txt を参照してください。

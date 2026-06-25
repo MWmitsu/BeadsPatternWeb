@@ -5,12 +5,13 @@
 //  オフライン時のみキャッシュから配信する。これにより更新が確実に届き、かつオフラインでも起動できる。
 //  ※ cache-first だと更新が反映されないため避ける。キャッシュ名を変えると旧キャッシュは破棄される。
 // ============================================================
-const CACHE = 'beads-pattern-v2';
+const CACHE = 'beads-pattern-v3';
 
 const CORE = [
   './',
   './index.html',
   './css/styles.css',
+  './css/fonts.css',
   './manifest.webmanifest',
   './vendor/react.production.min.js',
   './vendor/react-dom.production.min.js',

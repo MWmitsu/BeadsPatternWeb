@@ -36,7 +36,8 @@ export function splitGraphemes(text) {
 /** ctx.font 文字列を組み立てる */
 function fontString(fontKey, sizePx, boldGlobal) {
   const f = getFont(fontKey);
-  const bold = boldGlobal || f.forceBold;
+  // forceBold=常に太字 / fixedWeight=本来の太さ(トグル無視・飾り文字のニセ太字を防ぐ) / それ以外=トグル次第
+  const bold = f.forceBold ? true : f.fixedWeight ? false : boldGlobal;
   return `${bold ? 'bold ' : ''}${Math.max(1, Math.round(sizePx))}px ${f.stack}`;
 }
 
