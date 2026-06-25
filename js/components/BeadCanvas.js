@@ -225,10 +225,11 @@ export function BeadCanvas(props) {
     const pts = [...pointersRef.current.values()];
     if (pts.length < 2) return;
     // 2本指ズーム開始時、1本目で付いてしまった「まだ動かしていない」チェックは取り消す
-    // （拡大しようとして1マス誤チェックされる事故を防ぐ）
+    // （拡大しようとして1本目の指で1マス誤って塗る/チェックする事故を防ぐ）
     const d = dragRef.current;
-    if (d && d.type === 'check' && !d.moved && d.last && onSetDone) {
-      onSetDone([d.last], !d.markDone);
+    if (d && !d.moved) {
+      if (d.type === 'check' && d.last && onSetDone) onSetDone([d.last], !d.markDone);
+      else if (d.type === 'draw' && onUndo) onUndo(); // 1本目downで積んだ誤描画＋履歴を取り消す
     }
     dragRef.current = null; // 描画を中断
     panRef.current = null;
@@ -258,20 +259,20 @@ export function BeadCanvas(props) {
     if (canvasRef.current.setPointerCapture) {
       try { canvasRef.current.setPointerCapture(e.pointerId); } catch (_) {}
     }
-    // 全画面で2本指 → ピンチ/パン
-    if (fullscreen && pointersRef.current.size >= 2) {
+    // 全画面で2本指 → ピンチ/パン（比較表示は変換しないので対象外=fsZoom）
+    if (fsZoom && pointersRef.current.size >= 2) {
       e.preventDefault();
       startGesture();
       return;
     }
-    // 1本指: 描画/作業 か、(全画面・非編集なら)パン
-    if (interactive) {
+    // 1本指のみ描画/作業（2本目以降の指は無視＝別マスを誤って塗る/チェックしない）
+    if (interactive && pointersRef.current.size < 2) {
       const cell = cellFromEvent(e);
       if (!cell) return;
       e.preventDefault();
       if (checkMode) {
         const idx = cell.y * pattern.width + cell.x;
-        dragRef.current = { type: 'check', markDone: !(doneSet && doneSet.has(idx)), last: cell };
+        dragRef.current = { type: 'check', markDone: !(doneSet && doneSet.has(idx)), last: cell, pointerId: e.pointerId };
         onSetDone && onSetDone([cell], dragRef.current.markDone);
         return;
       }
@@ -279,9 +280,9 @@ export function BeadCanvas(props) {
       onStrokeBegin && onStrokeBegin();
       if (activeTool === 'bucket') { onBucket && onBucket(cell.x, cell.y); dragRef.current = null; return; }
       const erase = activeTool === 'eraser';
-      dragRef.current = { type: 'draw', erase, last: cell };
+      dragRef.current = { type: 'draw', erase, last: cell, pointerId: e.pointerId };
       onDraw && onDraw([cell], erase);
-    } else if (fullscreen) {
+    } else if (fsZoom && pointersRef.current.size < 2) {
       e.preventDefault();
       panRef.current = { last: { x: e.clientX, y: e.clientY } };
     }
@@ -294,6 +295,7 @@ export function BeadCanvas(props) {
     if (gestureRef.current) { updateGesture(); return; }
     const d = dragRef.current;
     if (d) {
+      if (d.pointerId != null && e.pointerId !== d.pointerId) return; // 開始した指だけ追跡
       const cell = cellFromEvent(e);
       if (!cell) return;
       if (cell.x === d.last.x && cell.y === d.last.y) return;
@@ -407,7 +409,7 @@ export function BeadCanvas(props) {
 
       ${interactive || fullscreen
         ? html`<div class="bead-canvas__draghint muted">
-            ${fullscreen ? '2本指で拡大・移動できます。' : '拡大は ＋ / − ボタン、または「⛶ 全画面」で2本指でできます。'}${
+            ${fsZoom ? '2本指で拡大・移動できます。' : fullscreen ? '' : '拡大は ＋ / − ボタン、または「⛶ 全画面」で2本指でできます。'}${
               checkMode
                 ? 'マスをタップすると印が付きます（もう一度タップで消えます）。1本指のドラッグでまとめてチェックできます。' + (fullscreen ? '' : '「⛶ 全画面」にすると大きく押せます。')
                 : interactive

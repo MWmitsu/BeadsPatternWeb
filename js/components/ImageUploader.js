@@ -86,6 +86,9 @@ export function ImageUploader(props) {
   // ドラッグが領域から出たとき
   const onDragLeave = (e) => {
     e.preventDefault();
+    // 領域内の子要素(プレビュー画像/案内文など)へ移っただけなら無視（枠線のちらつき防止）。
+    // 本当に領域外へ出たとき(relatedTarget が領域外、または null)のみ解除する。
+    if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
     setDragover(false);
   };
 

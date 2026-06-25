@@ -515,9 +515,10 @@ export function App() {
     setDoneSet(new Set(snap.done || []));
   };
   // 編集の直前に呼ぶ。現状を past へ積み future を捨てる。
+  // ※editedRef(手動編集フラグ)は「実際に図案が変化した箇所」で個別に立てる。
+  //   ここで一律に立てると、無変化クリックや台座形状変更だけで自動プレビューが止まる不具合になる。
   const pushHistory = () => {
     if (!pattern) return;
-    editedRef.current = true; // 手動編集が入った印(自動プレビューで上書きしない)
     const snap = snapshotPattern();
     setHistory((hst) => ({ past: [...hst.past.slice(-29), snap], future: [] }));
   };
@@ -579,6 +580,7 @@ export function App() {
       }
     }
     if (!changed) return;
+    editedRef.current = true; // 実際に変化したときだけ手動編集フラグを立てる
     const { colors, totalBeads } = recomputeCounts(cells, pattern.colors);
     setPattern({ ...pattern, cells, colors, totalBeads });
   };
@@ -618,6 +620,7 @@ export function App() {
       }
     }
     if (!changed) return;
+    editedRef.current = true; // 実際に変化したときだけ手動編集フラグを立てる
     const { colors, totalBeads } = recomputeCounts(cells, pattern.colors);
     setPattern({ ...pattern, cells, colors, totalBeads });
   };
@@ -640,6 +643,7 @@ export function App() {
   const transformPattern = (mapFn, newW, newH) => {
     if (!pattern) return;
     pushHistory();
+    editedRef.current = true; // 反転・回転は手動編集扱い(自動プレビューで上書きしない)
     const W = pattern.width;
     const H = pattern.height;
     const src = pattern.cells;
@@ -675,7 +679,15 @@ export function App() {
   // ---- 色のHEX/色名編集 ----
   const handleEditColor = (id, patch) => {
     if (!pattern) return;
+    // 無変化な編集(同じHEX/色名の再適用、カラーピッカーで現在色を選び直す等)は何もしない。
+    // 履歴や手動編集フラグを汚すと、以後の自動プレビューが止まる副作用が出るため。
+    const cur = pattern.colors.find((c) => c.id === id);
+    if (!cur) return;
+    const hexChanged = patch.hex != null && patch.hex !== cur.hex;
+    const nameChanged = patch.name != null && patch.name !== cur.name;
+    if (!hexChanged && !nameChanged) return;
     pushHistory();
+    editedRef.current = true;
     const colors = pattern.colors.map((c) => {
       if (c.id !== id) return c;
       const next = { ...c, ...patch };
@@ -701,6 +713,7 @@ export function App() {
     const target = pattern.colors.find((c) => c.id === toId);
     if (!target) return;
     pushHistory();
+    editedRef.current = true; // 色の統合は手動編集扱い
     const merged = pattern.cells.map((cell) =>
       cell.colorId === fromId
         ? { ...cell, colorId: toId, hex: target.hex }
@@ -757,6 +770,7 @@ export function App() {
       return;
     }
     pushHistory();
+    editedRef.current = true; // ビーズ色スナップは手動編集扱い
     const res = snapPatternToPalette(pattern.cells, pattern.colors, pal.colors);
     setPattern({ ...pattern, cells: res.cells, colors: res.colors, totalBeads: res.totalBeads });
     setEditColorId(null);

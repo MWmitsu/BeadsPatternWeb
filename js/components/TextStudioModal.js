@@ -32,6 +32,10 @@ const MAX_CHARS = 20;
 // プレビューに足す余白(px)。ドラッグで文字を動かす余地（大きいほど端で見切れにくい）。
 // 確定時の図案には付かない（apply は余白なしのtightで描く）。
 const PREVIEW_MARGIN = 150;
+// 1文字の移動量(段)の上限。矢印連打/ドラッグでキャンバスが無制限に巨大化して
+// iPhoneでメモリ膨張・PNG生成失敗するのを防ぐ。
+const NUDGE_LIMIT = 40;
+const clampNudge = (v) => Math.max(-NUDGE_LIMIT, Math.min(NUDGE_LIMIT, v || 0));
 
 export function TextStudioModal(props) {
   const { initialState = {}, onApply, onCancel, onPersist } = props;
@@ -243,7 +247,7 @@ export function TextStudioModal(props) {
     const i = d.index;
     setPerChar((pc) => {
       const cur = pc[i] || {};
-      return { ...pc, [i]: { ...cur, dx: (cur.dx || 0) + ddx, dy: (cur.dy || 0) + ddy } };
+      return { ...pc, [i]: { ...cur, dx: clampNudge((cur.dx || 0) + ddx), dy: clampNudge((cur.dy || 0) + ddy) } };
     });
   };
 
@@ -267,7 +271,7 @@ export function TextStudioModal(props) {
     setPerChar((pc) => ({ ...pc, [i]: { ...(pc[i] || {}), ...partial } }));
   const nudge = (i, dxStep, dyStep) => {
     const cur = perChar[i] || {};
-    updateChar(i, { dx: (cur.dx || 0) + dxStep, dy: (cur.dy || 0) + dyStep });
+    updateChar(i, { dx: clampNudge((cur.dx || 0) + dxStep), dy: clampNudge((cur.dy || 0) + dyStep) });
   };
   const resizeChar = (i, delta) => {
     const cur = perChar[i] || {};
