@@ -48,8 +48,8 @@ export function ProjectList(props) {
   };
 
   return html`
-    <section class="panel projects">
-      <h2 class="panel__title">保存した図案</h2>
+    <details class="panel projects panel--collapsible">
+      <summary class="panel__title">保存した図案</summary>
       <div class="panel__body">
         ${projects.length === 0
           ? html`<p class="projects__empty muted">保存した図案はありません。</p>`
@@ -115,6 +115,6 @@ export function ProjectList(props) {
               </ul>
             `}
       </div>
-    </section>
+    </details>
   `;
 }

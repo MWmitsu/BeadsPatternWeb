@@ -47,8 +47,8 @@ export function ToolsPanel(props) {
   const disabled = !hasPattern;
 
   return html`
-    <section class="panel tools">
-      <h2 class="panel__title">制作・共有ツール</h2>
+    <details class="panel tools panel--collapsible">
+      <summary class="panel__title">制作・共有ツール</summary>
       <div class="panel__body">
 
         <!-- ビーズ色 -->
@@ -185,6 +185,6 @@ export function ToolsPanel(props) {
         </div>
 
       </div>
-    </section>
+    </details>
   `;
 }

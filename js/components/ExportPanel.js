@@ -117,8 +117,8 @@ export function ExportPanel(props) {
   }
 
   return html`
-    <section class="panel export">
-      <h2 class="panel__title">出力・保存</h2>
+    <details class="panel export panel--collapsible">
+      <summary class="panel__title">出力・保存</summary>
       <div class="panel__body export__body">
 
         <div class="export__group">
@@ -198,6 +198,6 @@ export function ExportPanel(props) {
           onChange=${handleFileChange}
         />
       </div>
-    </section>
+    </details>
   `;
 }

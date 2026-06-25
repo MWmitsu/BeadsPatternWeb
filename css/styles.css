@@ -193,6 +193,22 @@ input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; }
 }
 .panel__body { padding: 13px 14px; }
 
+/* 折りたたみパネル（details/summary）。見出しを押して開閉する。既定は閉じる。 */
+.panel--collapsible > summary.panel__title {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.panel--collapsible > summary.panel__title::-webkit-details-marker { display: none; }
+.panel--collapsible > summary.panel__title::after {
+  content: '▾';
+  margin-left: auto;
+  font-size: 0.85em;
+  color: var(--muted, #888);
+}
+.panel--collapsible:not([open]) > summary.panel__title::after { content: '▸'; }
+.panel--collapsible:not([open]) > summary.panel__title { border-bottom: 0; }
+
 /* ---- 警告・メッセージ -------------------------------------- */
 .warn {
   margin: 6px 0;
