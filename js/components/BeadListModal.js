@@ -23,7 +23,6 @@ export function BeadListModal(props) {
     width = 0,
     height = 0,
     inventory = {},
-    consumed = {},
     reflected = false,
     canReflect = false,
     projectTitle = '',
@@ -47,7 +46,6 @@ export function BeadListModal(props) {
   let groups = null;
   let totalShort = 0;
   let colorsShort = 0;
-  let anyConsumed = false;
   if (hasPalette) {
     const map = new Map();
     for (const c of sorted) {
@@ -60,15 +58,10 @@ export function BeadListModal(props) {
     }
     groups = [...map.values()].sort((a, b) => b.need - a.need);
     for (const g of groups) {
-      const owned = Number(inventory[`${beadPaletteId}:${g.code}`]) || 0;
-      const used = Number(consumed[`${beadPaletteId}:${g.code}`]) || 0; // 他の完成作品の消費
-      const remaining = Math.max(0, owned - used); // 残り(他作品の使用を引いた手持ち)
-      const short = Math.max(0, g.need - remaining);
+      const owned = Number(inventory[`${beadPaletteId}:${g.code}`]) || 0; // 手持ち(残り在庫)
+      const short = Math.max(0, g.need - owned);
       g.owned = owned;
-      g.used = used;
-      g.remaining = remaining;
       g.short = short;
-      if (used > 0) anyConsumed = true;
       if (short > 0) { totalShort += short; colorsShort++; }
     }
   }
@@ -94,7 +87,7 @@ export function BeadListModal(props) {
           ${canInventory
             ? (totalShort > 0
                 ? html`<br /><b class="beadlist__short-sum">買い足し ${totalShort.toLocaleString()}個（${colorsShort}色）</b>`
-                : html`<br /><b class="beadlist__enough">手持ち（残り）で足りています 🎉</b>`)
+                : html`<br /><b class="beadlist__enough">手持ちで足りています 🎉</b>`)
             : null}
         </div>
 
@@ -125,7 +118,7 @@ export function BeadListModal(props) {
                       <div class="beadlist__info">
                         <div class="beadlist__name">${g.name}</div>
                         <div class="beadlist__no muted">
-                          色番号：${g.code}・必要 ${g.need.toLocaleString()}個${g.used > 0 ? `・他作品で使用 ${g.used.toLocaleString()}` : ''}
+                          色番号：${g.code}・必要 ${g.need.toLocaleString()}個
                         </div>
                       </div>
                       <div class="beadlist__inv">
@@ -145,9 +138,6 @@ export function BeadListModal(props) {
                         </div>
                       </div>
                       <div class="beadlist__count">
-                        ${anyConsumed
-                          ? html`<span class="beadlist__remain muted">残り ${g.remaining.toLocaleString()}</span>`
-                          : null}
                         ${g.short > 0
                           ? html`<span class="beadlist__short">買い足し ${g.short.toLocaleString()}個</span>`
                           : html`<span class="beadlist__ok">足りてる ✓</span>`}
@@ -181,7 +171,7 @@ export function BeadListModal(props) {
             ? html`<span class="muted beadlist__foot-note">「必要数」は使用個数に予備${bufferPercent}%を足した目安です。</span>`
             : null}
           ${canInventory
-            ? html`<span class="muted beadlist__foot-note">手持ちは ＋（買い足し）／−（使った）で増減でき、自動保存・他の図案にも引き継がれます。完成作品の分は「完成にして在庫から引く」で記録します。</span>`
+            ? html`<span class="muted beadlist__foot-note">手持ちは ＋（買い足し）／−（使った）で増減でき、自動保存・他の図案にも引き継がれます。「完成にして在庫から引く」を押すと、この手持ちから使った分が実際に減ります（取り消しで戻ります）。</span>`
             : null}
           <button class="btn btn--primary" type="button" onClick=${onClose}>閉じる</button>
         </div>

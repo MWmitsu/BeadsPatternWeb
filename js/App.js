@@ -279,6 +279,7 @@ export function App() {
   const [projects, setProjects] = useState(() => loadProjects());
   const [inventory, setInventory] = useState(() => loadInventory()); // ビーズ在庫(手持ち数)
   const [reflected, setReflected] = useState(false); // この図案を「完成として在庫に反映」したか
+  const [reflectedUsed, setReflectedUsed] = useState({}); // 反映時に在庫から実際に引いた数(取り消しで戻す)
   const [currentId, setCurrentId] = useState(null);
   const [createdAt, setCreatedAt] = useState(null);
   const draftIdRef = useRef(makeId());
@@ -390,6 +391,7 @@ export function App() {
         setCheckMode(false);
         setDoneSet(new Set());
         setReflected(false); // 新しく変換した図案はまだ未完成(在庫未反映)
+        setReflectedUsed({});
         setMirrorX(false);
         setMirrorY(false);
         setActiveTool('pen');
@@ -1047,6 +1049,7 @@ export function App() {
     setCheckMode(false);
     setDoneSet(new Set());
     setReflected(false);
+    setReflectedUsed({});
     setMirrorX(false);
     setMirrorY(false);
     setActiveTool('pen');
@@ -1212,6 +1215,7 @@ export function App() {
       thumbnail,
       done: Array.from(doneSet),
       inventoryReflected: reflected, // 完成として在庫に反映済みか
+      inventoryUsed: reflectedUsed || {}, // 反映時に在庫から引いた数(取り消し用)
       createdAt: createdAt || now,
       updatedAt: now,
     };
@@ -1221,7 +1225,7 @@ export function App() {
   const project = useMemo(
     () => (pattern ? buildProjectBase(false) : null),
     // eslint-disable-next-line
-    [pattern, settings, title, currentId, sourceImageName, createdAt, doneSet, reflected]
+    [pattern, settings, title, currentId, sourceImageName, createdAt, doneSet, reflected, reflectedUsed]
   );
 
   // ---- localStorage 保存 ----
@@ -1302,6 +1306,7 @@ export function App() {
       setCheckMode(false);
       setDoneSet(new Set(Array.isArray(obj.done) ? obj.done : []));
       setReflected(!!obj.inventoryReflected);
+      setReflectedUsed(obj.inventoryUsed && typeof obj.inventoryUsed === 'object' ? obj.inventoryUsed : {});
       setMirrorX(false);
       setMirrorY(false);
       setActiveTool('pen');
@@ -1345,23 +1350,9 @@ export function App() {
     });
   };
 
-  // 他の「完成(在庫反映済み)」図案が使ったビーズ数の合計(編集中の図案は除く)。
-  // 残り在庫 = 手持ち − これ。買い物リストの「不足」もこの残りを基準に出す。
-  const consumedExcludingCurrent = useMemo(() => {
-    const m = {};
-    for (const p of projects) {
-      if (!p || !p.inventoryReflected) continue;
-      // 編集中の図案が「反映済み」のときだけ、自分自身を二重に数えないよう除外する。
-      // (未反映の図案を編集中なら、同じidの保存図案は別物として消費に数える)
-      if (p.id === currentId && reflected) continue;
-      const used = consumptionOfProject(p);
-      for (const k of Object.keys(used)) m[k] = (m[k] || 0) + used[k];
-    }
-    return m;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projects, currentId, reflected]);
-
-  // 「完成として在庫に反映」の切り替え。図案を保存し、反映フラグを更新する。
+  // 「完成として在庫に反映」の切り替え。
+  // ON: この作品の使用分を在庫(手持ち)から実際に差し引く。引いた量を作品に保存(取り消し用)。
+  // OFF: 前回引いた分を在庫に戻す。
   const handleToggleReflect = () => {
     if (!pattern) return;
     const pid = settings.beadPaletteId;
@@ -1370,21 +1361,50 @@ export function App() {
       return;
     }
     const willReflect = !reflected;
-    const proj = { ...buildProjectBase(true), inventoryReflected: willReflect };
-    if (!proj.id) proj.id = makeId();
+    const proj0 = buildProjectBase(true);
+    if (!proj0.id) proj0.id = makeId();
+
+    const nextInv = { ...inventory };
+    let snapshot = {};
+    if (willReflect) {
+      // 使用分を在庫から引く。手持ちが足りなければ引けた分だけ記録する(取り消しで正確に戻すため)。
+      const used = consumptionOfProject(proj0);
+      for (const key of Object.keys(used)) {
+        const before = Number(nextInv[key]) || 0;
+        const sub = Math.min(before, used[key]);
+        if (sub > 0) {
+          snapshot[key] = sub;
+          const after = before - sub;
+          if (after > 0) nextInv[key] = after; else delete nextInv[key];
+        }
+      }
+    } else {
+      // 取り消し: 前回引いた分(保存済みスナップショット)を在庫へ戻す。
+      snapshot = reflectedUsed && typeof reflectedUsed === 'object' ? reflectedUsed : {};
+      for (const key of Object.keys(snapshot)) {
+        nextInv[key] = (Number(nextInv[key]) || 0) + (Number(snapshot[key]) || 0);
+      }
+    }
+
+    const proj = { ...proj0, inventoryReflected: willReflect, inventoryUsed: willReflect ? snapshot : {} };
     const res = saveProject(proj);
     if (!res.ok) { setError(res.error || '保存に失敗しました。'); return; }
+
+    saveInventory(nextInv);
+    setInventory(nextInv);
     setReflected(willReflect);
+    setReflectedUsed(willReflect ? snapshot : {});
     setCurrentId(proj.id);
     draftIdRef.current = proj.id;
     setProjects(loadProjects());
+    cloudSync.notifyLocalChange('inventory');
     cloudSync.notifyLocalChange('projects');
+
+    const total = Object.values(snapshot).reduce((a, b) => a + (Number(b) || 0), 0);
     if (willReflect) {
-      const used = consumptionOfProject(proj);
-      const total = Object.values(used).reduce((a, b) => a + b, 0);
-      flash(`完成として在庫に反映しました（${Object.keys(used).length}色・計${total.toLocaleString()}個を使用）。`);
+      flash(`完成！在庫から ${total.toLocaleString()}個 引きました（取り消しできます）。`);
     } else {
-      flash('在庫への反映を取り消しました。');
+      flash(`在庫への反映を取り消し、${total.toLocaleString()}個 戻しました。`);
     }
   };
 
@@ -1706,7 +1726,6 @@ export function App() {
           width=${pattern ? pattern.width : 0}
           height=${pattern ? pattern.height : 0}
           inventory=${inventory}
-          consumed=${consumedExcludingCurrent}
           reflected=${reflected}
           canReflect=${!!pattern}
           projectTitle=${title}
