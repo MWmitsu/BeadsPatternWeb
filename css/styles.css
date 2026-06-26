@@ -998,6 +998,17 @@ input.warn--error {
 }
 .beadlist__foot-note { font-size: 0.78em; margin-right: auto; }
 
+/* ビーズ在庫(手持ち数・不足) */
+.beadlist__hint { padding: 8px 14px; font-size: 0.82em; border-bottom: 1px solid var(--border); }
+.beadlist__short-sum { color: var(--warn-text, #b26a00); }
+.beadlist__enough { color: var(--accent-strong, #1aa37a); }
+.beadlist__row--short { background: rgba(255, 170, 0, 0.08); }
+.beadlist__inv { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 auto; }
+.beadlist__inv-label { font-size: 0.7em; }
+.beadlist__inv-input { width: 64px; text-align: center; font-size: 16px; }
+.beadlist__short { font-size: 0.9em; font-weight: 700; color: var(--warn-text, #b26a00); white-space: nowrap; }
+.beadlist__ok { font-size: 0.82em; color: var(--accent-strong, #1aa37a); white-space: nowrap; }
+
 /* QRコードで共有 モーダル */
 .qrmodal {
   position: fixed;

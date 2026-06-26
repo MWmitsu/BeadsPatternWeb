@@ -39,6 +39,8 @@ export function ExportPanel(props) {
     onSaveLocal,
     onOpenPrint,
     onImportProject,
+    onBackupAll,
+    onRestoreAll,
     disabled,
     bufferPercent = 0,
     beadPaletteColors = null,
@@ -46,6 +48,8 @@ export function ExportPanel(props) {
 
   // 隠しファイル入力(JSON読込用)への参照
   const fileInputRef = useRef(null);
+  // 全データ復元用の隠しファイル入力
+  const restoreInputRef = useRef(null);
 
   // 完成イメージPNGを保存(グリッド無し)。
   // 完成イメージは「丸ビーズ風」や空ペグ点を含めず、ベタ塗りのクリアな画像にする。
@@ -113,6 +117,28 @@ export function ExportPanel(props) {
     reader.readAsText(file);
 
     // 同じファイルを連続で選んでも change が発火するよう値をリセット
+    input.value = '';
+  }
+
+  // 全データのバックアップから復元
+  function handleRestoreClick() {
+    if (restoreInputRef.current) restoreInputRef.current.click();
+  }
+  function handleRestoreFileChange(e) {
+    const input = e.target;
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(String(reader.result));
+        if (onRestoreAll) onRestoreAll(obj);
+      } catch (err) {
+        alert('バックアップファイル（JSON）の読み込みに失敗しました。ファイルが壊れている可能性があります。');
+      }
+    };
+    reader.onerror = () => alert('ファイルの読み込みに失敗しました。');
+    reader.readAsText(file);
     input.value = '';
   }
 
@@ -184,9 +210,27 @@ export function ExportPanel(props) {
           </div>
           <p class="muted export__note">
             「このブラウザに保存」は、次回このブラウザで開いたときに続きから使えます。
-            「ファイルに書き出す」は、設定や図案を1つのファイルにまとめ、別の端末へ移したりバックアップに使えます。
+            「ファイルに書き出す」は、いま開いている図案1つをファイルにまとめます。
           </p>
         </div>
+
+        ${(onBackupAll || onRestoreAll) &&
+        html`
+          <div class="divider"></div>
+          <div class="export__group">
+            <div class="field__label">全データのバックアップ（図案ぜんぶ＋在庫）</div>
+            <div class="export__btnrow">
+              ${onBackupAll &&
+              html`<button type="button" class="btn" onClick=${() => onBackupAll()}>全部まとめて保存</button>`}
+              ${onRestoreAll &&
+              html`<button type="button" class="btn btn--ghost" onClick=${handleRestoreClick}>バックアップから復元</button>`}
+            </div>
+            <p class="muted export__note">
+              「このブラウザに保存」した図案ぜんぶと手持ち在庫を、1つのファイルにまとめて保存します。
+              機種変更や別の端末への引っ越し、万一に備えた控えに使えます（復元すると既存のデータは置き換わります）。
+            </p>
+          </div>
+        `}
 
         <!-- JSON読込用の隠しファイル入力 -->
         <input
@@ -196,6 +240,15 @@ export function ExportPanel(props) {
           class="export__file"
           style=${{ display: 'none' }}
           onChange=${handleFileChange}
+        />
+        <!-- 全データ復元用の隠しファイル入力 -->
+        <input
+          ref=${restoreInputRef}
+          type="file"
+          accept=".json,application/json"
+          class="export__file"
+          style=${{ display: 'none' }}
+          onChange=${handleRestoreFileChange}
         />
       </div>
     </details>

@@ -148,3 +148,5 @@ export const ACCEPTED_IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.
 export const STORAGE_KEY = 'beads-pattern-projects-v1';
 /** 自動保存(編集中ドラフト)用キー */
 export const DRAFT_KEY = 'beads-pattern-draft-v1';
+/** ビーズ在庫(手持ち数)用キー。{ "<paletteId>:<colorCode>": number } */
+export const INVENTORY_KEY = 'beads-inventory-v1';

@@ -28,6 +28,10 @@ import {
   saveDraft,
   loadDraft,
   clearDraft,
+  loadInventory,
+  saveInventory,
+  exportAllData,
+  importAllData,
 } from './utils/storage.js';
 import { ImageUploader } from './components/ImageUploader.js';
 import { SettingsPanel } from './components/SettingsPanel.js';
@@ -252,6 +256,7 @@ export function App() {
   // ---- プロジェクト ----
   const [title, setTitle] = useState('無題の図案');
   const [projects, setProjects] = useState(() => loadProjects());
+  const [inventory, setInventory] = useState(() => loadInventory()); // ビーズ在庫(手持ち数)
   const [currentId, setCurrentId] = useState(null);
   const [createdAt, setCreatedAt] = useState(null);
   const draftIdRef = useRef(makeId());
@@ -1235,6 +1240,49 @@ export function App() {
     if (currentId === id) setCurrentId(null);
   };
 
+  // ---- ビーズ在庫(手持ち数) ----
+  // key = "<paletteId>:<colorCode>"。空入力は0(キー削除)。自動でlocalStorageへ保存。
+  const handleSetInventory = (key, raw) => {
+    setInventory((inv) => {
+      const next = { ...inv };
+      const n = Math.max(0, Math.floor(Number(raw)));
+      if (!raw || !Number.isFinite(n) || n <= 0) delete next[key];
+      else next[key] = n;
+      saveInventory(next);
+      return next;
+    });
+  };
+
+  // ---- 全データのバックアップ／復元(図案＋在庫を1ファイルに) ----
+  const handleBackupAll = () => {
+    try {
+      const data = exportAllData();
+      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `ビーズ図案バックアップ_${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      flash('全データ（図案＋在庫）をファイルに保存しました。');
+    } catch (e) {
+      setError('バックアップに失敗しました。');
+    }
+  };
+  const handleRestoreAll = (obj) => {
+    const res = importAllData(obj);
+    if (!res.ok) {
+      setError(res.error || '復元に失敗しました。');
+      return;
+    }
+    setProjects(loadProjects());
+    setInventory(loadInventory());
+    flash(`バックアップから復元しました（図案 ${res.projects} 件）。`);
+  };
+
   const handleOpenPrint = () => {
     if (!pattern) {
       setError('印刷する図案がありません。先に画像を変換してください。');
@@ -1352,6 +1400,8 @@ export function App() {
             onSaveLocal=${handleSaveLocal}
             onOpenPrint=${handleOpenPrint}
             onImportProject=${(obj) => applyLoaded(obj, { sourceImageUrl: obj && obj.thumbnail })}
+            onBackupAll=${handleBackupAll}
+            onRestoreAll=${handleRestoreAll}
             disabled=${!pattern}
             bufferPercent=${settings.bufferPercent}
             beadPaletteColors=${beadPaletteColors}
@@ -1509,10 +1559,13 @@ export function App() {
           totalBeads=${totalBeads}
           bufferPercent=${settings.bufferPercent}
           beadPaletteColors=${beadPaletteColors}
+          beadPaletteId=${settings.beadPaletteId}
           paletteName=${beadPalette ? beadPalette.name : ''}
           sizeMm=${beadPalette ? beadPalette.sizeMm : 0}
           width=${pattern ? pattern.width : 0}
           height=${pattern ? pattern.height : 0}
+          inventory=${inventory}
+          onSetInventory=${handleSetInventory}
           onClose=${() => setBeadListOpen(false)}
         />
       `}

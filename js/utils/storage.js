@@ -5,7 +5,7 @@
 // 読み込み時に colors の id→hex 対応から cells を復元する。
 // ============================================================
 
-import { STORAGE_KEY, BACKGROUND_COLOR_ID, DRAFT_KEY } from '../types.js';
+import { STORAGE_KEY, BACKGROUND_COLOR_ID, DRAFT_KEY, INVENTORY_KEY } from '../types.js';
 
 /**
  * ブラウザ向けのユニークID(時刻 + 乱数)を生成する。
@@ -162,5 +162,71 @@ export function clearDraft() {
     localStorage.removeItem(DRAFT_KEY);
   } catch {
     /* ignore */
+  }
+}
+
+// ---- ビーズ在庫(手持ち数) --------------------------------------
+// 市販ビーズ色ごとの手持ち数を { "<paletteId>:<colorCode>": number } で保持する。
+
+/** 在庫マップを読み込む(失敗時 {})。 */
+export function loadInventory() {
+  try {
+    const raw = localStorage.getItem(INVENTORY_KEY);
+    if (!raw) return {};
+    const obj = JSON.parse(raw);
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return {};
+    // 数値だけを採用(破損データ防御)
+    const out = {};
+    for (const k of Object.keys(obj)) {
+      const n = Number(obj[k]);
+      if (Number.isFinite(n) && n >= 0) out[k] = Math.floor(n);
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** 在庫マップを保存する。 */
+export function saveInventory(inv) {
+  try {
+    localStorage.setItem(INVENTORY_KEY, JSON.stringify(inv || {}));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ---- 全データのバックアップ／復元 ------------------------------
+// 図案(プロジェクト全件)＋在庫を1つのオブジェクトにまとめる。端末間移動・保管用。
+
+/** バックアップ用に全データをまとめて返す。 */
+export function exportAllData() {
+  return {
+    kind: 'beads-pattern-app-backup',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    projects: loadProjects(),
+    inventory: loadInventory(),
+  };
+}
+
+/**
+ * バックアップから全データを復元する(プロジェクトと在庫を上書き)。
+ * @returns {{ok:boolean, projects:number, error?:string}}
+ */
+export function importAllData(obj) {
+  try {
+    if (!obj || obj.kind !== 'beads-pattern-app-backup') {
+      return { ok: false, projects: 0, error: 'このアプリのバックアップファイルではありません。' };
+    }
+    const projects = Array.isArray(obj.projects) ? obj.projects.filter((p) => p && typeof p === 'object' && p.id) : [];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+    if (obj.inventory && typeof obj.inventory === 'object' && !Array.isArray(obj.inventory)) {
+      saveInventory(obj.inventory);
+    }
+    return { ok: true, projects: projects.length };
+  } catch {
+    return { ok: false, projects: 0, error: '復元に失敗しました（保存できる量を超えている可能性があります）。' };
   }
 }
