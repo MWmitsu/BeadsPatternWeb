@@ -33,7 +33,7 @@ export function SettingsPanel(props) {
     warnings = [],
   } = props;
 
-  const fitMode = settings.fitMode || 'stretch';
+  const fitMode = settings.fitMode || 'contain';
   const detection = settings.detection;
 
   const patch = (partial) => onChange({ ...settings, ...partial });

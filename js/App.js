@@ -192,22 +192,13 @@ function coverRectPx(iw, ih, gridAR) {
 
 /**
  * fitMode と crop から、pixelate に渡す src/dest 矩形を計算する。
- * stretch=全体を引き伸ばし / crop=比率維持で範囲切り抜き / contain=比率維持で全体を余白付きで収める
+ * crop=比率維持で範囲切り抜き / contain(既定)=比率維持で全体を収める
+ * ※取り込み時にマス目を画像比率へ合わせるので、contain は通常そのままぴったり収まる(余白なし)。
  */
 function computeRects(image, w, h, fitMode, crop) {
   const iw = image.naturalWidth || image.width;
   const ih = image.naturalHeight || image.height;
   const gridAR = w / h;
-
-  if (fitMode === 'contain') {
-    const scale = Math.min(w / iw, h / ih);
-    const dw = iw * scale;
-    const dh = ih * scale;
-    return {
-      src: { sx: 0, sy: 0, sw: iw, sh: ih },
-      dest: { dx: (w - dw) / 2, dy: (h - dh) / 2, dw, dh },
-    };
-  }
 
   if (fitMode === 'crop') {
     // 比率が大きくズレた古い crop は無視して自動カバーに切り替える(歪み防止)
@@ -220,8 +211,14 @@ function computeRects(image, w, h, fitMode, crop) {
     return { src: rect, dest: { dx: 0, dy: 0, dw: w, dh: h } };
   }
 
-  // stretch(既定)
-  return { src: { sx: 0, sy: 0, sw: iw, sh: ih }, dest: { dx: 0, dy: 0, dw: w, dh: h } };
+  // contain(既定。'stretch' 等の旧値もここで全体表示に倒す)
+  const scale = Math.min(w / iw, h / ih);
+  const dw = iw * scale;
+  const dh = ih * scale;
+  return {
+    src: { sx: 0, sy: 0, sw: iw, sh: ih },
+    dest: { dx: (w - dw) / 2, dy: (h - dh) / 2, dw, dh },
+  };
 }
 
 /** 変換に関わる設定の署名（自動プレビューの重複変換抑止に使う）。convertSig と同じ並び。 */
@@ -345,7 +342,7 @@ export function App() {
         const h = clampDim(st.height);
         const d = st.detection;
         // fitMode/crop に応じて元画像から使う範囲(src)と描画先(dest)を計算
-        const rects = computeRects(img, w, h, st.fitMode || 'stretch', st.crop || null);
+        const rects = computeRects(img, w, h, st.fitMode || 'contain', st.crop || null);
         // 背景を自動で消すときは透明扱い(白で埋めない)で処理する
         const bgWhite = st.removeBackground ? false : st.backgroundAsWhite;
         const imageData = pixelateToImageData(img, w, h, {
@@ -414,19 +411,17 @@ export function App() {
       const base = (payload.name || '').replace(/\.[^.]+$/, '');
       if (base) setTitle(base);
     }
-    // 読み込んだら即変換して結果を見せる(設定を変えれば再変換できる)
-    convertWith(payload.image);
-
-    // 画像とビーズ(グリッド)の縦横比が違うときは、切り抜きモードなら
-    // 「範囲を調整」(切り抜き)を自動で開いて、使う範囲を選んでもらう。
+    // マス目(グリッド)を画像の比率に合わせる＝画像全体を、歪まず・切り取らず・余白なしで取り込む。
+    // 「横ビーズ数」を基準に、縦は画像比率から自動で決める。
     const iw = payload.image.naturalWidth || payload.width || 1;
     const ih = payload.image.naturalHeight || payload.height || 1;
-    const gridAR = (settings.width || 1) / (settings.height || 1);
-    const imgAR = iw / (ih || 1);
-    const ratioMismatch = Math.abs(imgAR - gridAR) > 0.04 * gridAR;
-    if ((settings.fitMode || 'crop') === 'crop' && ratioMismatch) {
-      setCropOpen(true);
-    }
+    const baseW = clampDim(settings.width || 64);
+    const gw = baseW;
+    const gh = clampDim(Math.round((baseW * ih) / iw));
+    const next = { ...settings, width: gw, height: gh, fitMode: 'contain', crop: null };
+    setSettings(next);
+    // 読み込んだら即変換して結果を見せる(設定を変えれば再変換できる)
+    convertWith(payload.image, next);
   };
 
   // 文字・名前から図案を作る(文字を画像化→グリッドを比率に合わせて変換)
@@ -1418,7 +1413,7 @@ export function App() {
             <ol class="help__steps">
               <li>「画像を選ぶ」で写真を読み込みます（または<b>「サンプルで試す」</b>）。</li>
               <li>横ビーズ数・縦ビーズ数と最大色数を決めて<b>「画像から変換」</b>を押します。</li>
-              <li>比率が違う写真は<b>「画像の合わせ方」</b>で、引き伸ばす／切り抜くを選べます。</li>
+              <li>写真は<b>全体をそのままの比率</b>で取り込みます（マス目を写真の形に自動で合わせます）。必要なら<b>「画像の合わせ方」</b>で一部だけ切り抜くこともできます。</li>
               <li>右の色一覧で色番号を確認します。色番号をクリックすると、その色だけ強調表示できます。印刷や、画像（PNG）・一覧データ（CSV／表計算ソフトで開けます）の保存もできます。</li>
               <li><b>「制作・共有ツール」</b>で、市販ビーズ色の目安・必要数・作業チェック・共有が使えます。</li>
             </ol>

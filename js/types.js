@@ -113,7 +113,7 @@ export const DEFAULT_SETTINGS = {
   backgroundAsWhite: true,
   removeBackground: false, // 背景を自動で消す(縁の背景色を透明化)。true時は透明扱い
   mergeStrength: '標準',
-  fitMode: 'crop', // 'stretch'(引き伸ばす) | 'crop'(切り抜き) | 'contain'(全体・余白)。既定は比率を保つ切り抜き
+  fitMode: 'contain', // 'contain'(全体) | 'crop'(切り抜き)。既定は画像全体を比率そのままで取り込む(マス目を画像の形に合わせる)
   crop: null,         // 切り抜き範囲(正規化 {x,y,w,h} 0..1)。null は自動(中央カバー)
   beadPaletteId: 'standard48', // 近い市販ビーズ色のマッピング用パレット('none'で無効)
   bufferPercent: 10,  // 必要数の予備%(購入見積り用)
@@ -132,9 +132,8 @@ export const DEFAULT_SETTINGS = {
 
 /** 画像の合わせ方(アスペクト比の扱い) */
 export const FIT_MODES = [
-  { value: 'stretch', label: '引き伸ばす', hint: 'マス目全体に広げます（縦横の比率は無視します）。' },
-  { value: 'crop', label: '切り抜く', hint: '縦横の比率を保ち、使う範囲を選びます。' },
-  { value: 'contain', label: '全体を入れる', hint: '縦横の比率を保って全体を収めます（余白は背景の扱い＝白か透明になります）。' },
+  { value: 'contain', label: '全体を入れる（おすすめ）', hint: '画像全体を縦横比そのままで取り込みます（切り取りなし）。マス目を画像の形に自動で合わせます。' },
+  { value: 'crop', label: '一部を切り抜く', hint: '縦横の比率を保ち、使う範囲を選んで切り抜きます。' },
 ];
 
 /** 分割印刷の1区画あたりのマス数(選択肢) */
