@@ -50,7 +50,7 @@ import { QrModal } from './components/QrModal.js';
 import { makeQrMatrix } from './lib/qrcode.js';
 import { TextStudioModal } from './components/TextStudioModal.js';
 import { BEAD_PALETTES } from './data/beadPalettes.js';
-import { snapPatternToPalette } from './utils/beadMatch.js';
+import { snapPatternToPalette, matchToPalette } from './utils/beadMatch.js';
 import { makePlateMask } from './utils/plateShape.js';
 import {
   encodePatternToData,
@@ -221,6 +221,27 @@ function computeRects(image, w, h, fitMode, crop) {
   };
 }
 
+/**
+ * 図案(プロジェクト)が「在庫に反映」されたとき、各市販ビーズ色を何個消費するかを集計する。
+ * key = "<paletteId>:<colorCode>"、値 = 使用個数(予備%は含めない=実消費)。
+ * ビーズ色(ブランド)が未選択('none')のプロジェクトは消費0(商品色に対応づけられないため)。
+ * @returns {Object<string, number>}
+ */
+function consumptionOfProject(p) {
+  const out = {};
+  const pid = p && p.settings && p.settings.beadPaletteId;
+  if (!pid || pid === 'none') return out;
+  const palette = BEAD_PALETTES.find((b) => b.id === pid);
+  if (!palette || !palette.colors) return out;
+  for (const c of (p.colors || [])) {
+    if (!c || typeof c.hex !== 'string') continue;
+    const bead = matchToPalette(c.hex, palette.colors);
+    const key = `${pid}:${bead.code}`;
+    out[key] = (out[key] || 0) + (Number(c.count) || 0);
+  }
+  return out;
+}
+
 /** 変換に関わる設定の署名（自動プレビューの重複変換抑止に使う）。convertSig と同じ並び。 */
 function convertSignatureOf(s) {
   const d = s.detection || {};
@@ -257,6 +278,7 @@ export function App() {
   const [title, setTitle] = useState('無題の図案');
   const [projects, setProjects] = useState(() => loadProjects());
   const [inventory, setInventory] = useState(() => loadInventory()); // ビーズ在庫(手持ち数)
+  const [reflected, setReflected] = useState(false); // この図案を「完成として在庫に反映」したか
   const [currentId, setCurrentId] = useState(null);
   const [createdAt, setCreatedAt] = useState(null);
   const draftIdRef = useRef(makeId());
@@ -367,6 +389,7 @@ export function App() {
         setEditColorId(null);
         setCheckMode(false);
         setDoneSet(new Set());
+        setReflected(false); // 新しく変換した図案はまだ未完成(在庫未反映)
         setMirrorX(false);
         setMirrorY(false);
         setActiveTool('pen');
@@ -406,11 +429,9 @@ export function App() {
     setOriginalUrl(storeUrl);
     setSourceImageName(payload.name);
     setError(null);
-    // タイトル未設定なら拡張子を除いたファイル名を入れる
-    if (!title || title === '無題の図案') {
-      const base = (payload.name || '').replace(/\.[^.]+$/, '');
-      if (base) setTitle(base);
-    }
+    // 新しい画像＝新しい作品。タイトルもその画像のファイル名にする(別作品が同名になるのを防ぐ)。
+    const baseName = (payload.name || '').replace(/\.[^.]+$/, '');
+    setTitle(baseName || '無題の図案');
     // マス目(グリッド)を画像の比率に合わせる＝画像全体を、歪まず・切り取らず・余白なしで取り込む。
     // 「横ビーズ数」を基準に、縦は画像比率から自動で決める。
     const iw = payload.image.naturalWidth || payload.width || 1;
@@ -420,6 +441,9 @@ export function App() {
     const gh = clampDim(Math.round((baseW * ih) / iw));
     const next = { ...settings, width: gw, height: gh, fitMode: 'contain', crop: null };
     setSettings(next);
+    // 新しい画像は別の作品として扱う。読み込み中だった保存図案を上書きしないようIDを刷新する。
+    setCurrentId(null);
+    draftIdRef.current = makeId();
     // 読み込んだら即変換して結果を見せる(設定を変えれば再変換できる)
     convertWith(payload.image, next);
   };
@@ -452,6 +476,8 @@ export function App() {
         setOriginalUrl(dataUrl);
         setSourceImageName('文字「' + t.slice(0, 16) + '」');
         if (!title || title === '無題の図案') setTitle(t.slice(0, 20));
+        setCurrentId(null);
+        draftIdRef.current = makeId();
         convertWith(img, next);
       };
       img.onerror = () => setError('文字の図案化に失敗しました。');
@@ -498,6 +524,8 @@ export function App() {
         const t = String(text || '').trim();
         setSourceImageName('文字「' + t.slice(0, 16) + '」');
         if (!title || title === '無題の図案') setTitle(t.slice(0, 20) || '文字の図案');
+        setCurrentId(null);
+        draftIdRef.current = makeId();
         convertWith(img, next);
       };
       img.onerror = () => setError('文字の図案化に失敗しました。');
@@ -629,6 +657,20 @@ export function App() {
     editedRef.current = true; // 実際に変化したときだけ手動編集フラグを立てる
     const { colors, totalBeads } = recomputeCounts(cells, pattern.colors);
     setPattern({ ...pattern, cells, colors, totalBeads });
+    // 消しゴムで背景になったマスは作業チェック(doneSet)から外す(進捗が総数を超えないように)
+    if (erase) {
+      setDoneSet((prev) => {
+        if (!prev.size) return prev;
+        let mut = false;
+        const nextDone = new Set();
+        for (const idx of prev) {
+          const c = cells[idx];
+          if (c && c.colorId !== BACKGROUND_COLOR_ID) nextDone.add(idx);
+          else mut = true;
+        }
+        return mut ? nextDone : prev;
+      });
+    }
   };
 
   // ---- 塗りつぶし(バケツ・4連結フラッドフィル) ----
@@ -999,10 +1041,12 @@ export function App() {
     setOriginalUrl(null);
     setSourceImageName(null);
     setCurrentId(null);
+    draftIdRef.current = makeId(); // 共有リンクの図案は別作品。直前に開いていた保存図案を上書きしない。
     setCreatedAt(new Date().toISOString());
     setEditColorId(null);
     setCheckMode(false);
     setDoneSet(new Set());
+    setReflected(false);
     setMirrorX(false);
     setMirrorY(false);
     setActiveTool('pen');
@@ -1167,6 +1211,7 @@ export function App() {
       settings,
       thumbnail,
       done: Array.from(doneSet),
+      inventoryReflected: reflected, // 完成として在庫に反映済みか
       createdAt: createdAt || now,
       updatedAt: now,
     };
@@ -1176,7 +1221,7 @@ export function App() {
   const project = useMemo(
     () => (pattern ? buildProjectBase(false) : null),
     // eslint-disable-next-line
-    [pattern, settings, title, currentId, sourceImageName, createdAt, doneSet]
+    [pattern, settings, title, currentId, sourceImageName, createdAt, doneSet, reflected]
   );
 
   // ---- localStorage 保存 ----
@@ -1236,7 +1281,9 @@ export function App() {
       setTitle(obj.title || '無題の図案');
       editedRef.current = true; // 復元した図案は自動プレビューで上書きしない(再変換は手動で)
       setCurrentId(obj.id || null);
-      if (obj.id) draftIdRef.current = obj.id;
+      // IDの無い読み込み(テンプレート/インポート)は別作品として新IDを採番し、
+      // 直前に開いていた保存図案を保存時に上書きしないようにする。
+      draftIdRef.current = obj.id || makeId();
       setSourceImageName(obj.sourceImageName || null);
       setOriginalUrl(obj.thumbnail || null);
       setCreatedAt(obj.createdAt || new Date().toISOString());
@@ -1254,6 +1301,7 @@ export function App() {
       setEditColorId(null);
       setCheckMode(false);
       setDoneSet(new Set(Array.isArray(obj.done) ? obj.done : []));
+      setReflected(!!obj.inventoryReflected);
       setMirrorX(false);
       setMirrorY(false);
       setActiveTool('pen');
@@ -1295,6 +1343,49 @@ export function App() {
       cloudSync.notifyLocalChange('inventory');
       return next;
     });
+  };
+
+  // 他の「完成(在庫反映済み)」図案が使ったビーズ数の合計(編集中の図案は除く)。
+  // 残り在庫 = 手持ち − これ。買い物リストの「不足」もこの残りを基準に出す。
+  const consumedExcludingCurrent = useMemo(() => {
+    const m = {};
+    for (const p of projects) {
+      if (!p || !p.inventoryReflected) continue;
+      // 編集中の図案が「反映済み」のときだけ、自分自身を二重に数えないよう除外する。
+      // (未反映の図案を編集中なら、同じidの保存図案は別物として消費に数える)
+      if (p.id === currentId && reflected) continue;
+      const used = consumptionOfProject(p);
+      for (const k of Object.keys(used)) m[k] = (m[k] || 0) + used[k];
+    }
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects, currentId, reflected]);
+
+  // 「完成として在庫に反映」の切り替え。図案を保存し、反映フラグを更新する。
+  const handleToggleReflect = () => {
+    if (!pattern) return;
+    const pid = settings.beadPaletteId;
+    if (!pid || pid === 'none') {
+      setError('在庫に反映するには、先に「制作・共有ツール」でビーズ色（ブランド）を選んでください。');
+      return;
+    }
+    const willReflect = !reflected;
+    const proj = { ...buildProjectBase(true), inventoryReflected: willReflect };
+    if (!proj.id) proj.id = makeId();
+    const res = saveProject(proj);
+    if (!res.ok) { setError(res.error || '保存に失敗しました。'); return; }
+    setReflected(willReflect);
+    setCurrentId(proj.id);
+    draftIdRef.current = proj.id;
+    setProjects(loadProjects());
+    cloudSync.notifyLocalChange('projects');
+    if (willReflect) {
+      const used = consumptionOfProject(proj);
+      const total = Object.values(used).reduce((a, b) => a + b, 0);
+      flash(`完成として在庫に反映しました（${Object.keys(used).length}色・計${total.toLocaleString()}個を使用）。`);
+    } else {
+      flash('在庫への反映を取り消しました。');
+    }
   };
 
   // ---- 全データのバックアップ／復元(図案＋在庫を1ファイルに) ----
@@ -1615,6 +1706,11 @@ export function App() {
           width=${pattern ? pattern.width : 0}
           height=${pattern ? pattern.height : 0}
           inventory=${inventory}
+          consumed=${consumedExcludingCurrent}
+          reflected=${reflected}
+          canReflect=${!!pattern}
+          projectTitle=${title}
+          onToggleReflect=${handleToggleReflect}
           onSetInventory=${handleSetInventory}
           onClose=${() => setBeadListOpen(false)}
         />

@@ -477,6 +477,10 @@ input.warn--error {
 /* 作業チェックの開始ボタンは見つけやすいよう、未選択でもアクセント枠で少し目立たせる */
 .bead-canvas__check { white-space: nowrap; }
 .bead-canvas__check.btn--ghost { border-color: var(--accent); color: var(--accent-strong, var(--accent)); }
+/* 区画(ブロック)チェックのサイズ選択 */
+.bead-canvas__block { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8em; white-space: nowrap; }
+.bead-canvas__block-label { color: var(--muted, #777); }
+.bead-canvas__block-sel { height: 30px; font-size: 16px; padding: 0 4px; border-radius: 8px; }
 
 /* 編集ツールバー(ペン/消しゴム/スポイト/バケツ + ミラー) */
 .bead-canvas__sep {
@@ -1005,9 +1009,18 @@ input.warn--error {
 .beadlist__row--short { background: rgba(255, 170, 0, 0.08); }
 .beadlist__inv { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 auto; }
 .beadlist__inv-label { font-size: 0.7em; }
-.beadlist__inv-input { width: 64px; text-align: center; font-size: 16px; }
+.beadlist__inv-input { width: 50px; text-align: center; font-size: 16px; }
+.beadlist__stepper { display: flex; align-items: center; gap: 4px; }
+.beadlist__step { width: 30px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface, #fff); font-size: 1.1em; line-height: 1; cursor: pointer; flex: 0 0 auto; }
+.beadlist__step:active { background: var(--surface-2, #eee); }
 .beadlist__short { font-size: 0.9em; font-weight: 700; color: var(--warn-text, #b26a00); white-space: nowrap; }
 .beadlist__ok { font-size: 0.82em; color: var(--accent-strong, #1aa37a); white-space: nowrap; }
+.beadlist__remain { display: block; font-size: 0.74em; }
+/* 完成→在庫反映バー */
+.beadlist__reflect { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: rgba(26, 163, 122, 0.06); }
+.beadlist__reflect--on { background: rgba(26, 163, 122, 0.12); }
+.beadlist__reflect-on { font-weight: 700; color: var(--accent-strong, #1aa37a); }
+.beadlist__reflect-hint { font-size: 0.78em; flex: 1 1 100%; margin: 0; }
 
 /* クラウド同期パネル */
 .cloudsync__lead { margin: 0 0 10px; }

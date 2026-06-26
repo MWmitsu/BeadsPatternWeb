@@ -12,6 +12,15 @@
 
 import { html, useRef, useEffect, useState } from '../lib/html.js';
 import { drawPattern } from '../lib/renderPattern.js';
+import { BACKGROUND_COLOR_ID } from '../types.js';
+
+// 区画(ブロック)チェックのブロックサイズ候補(0=1マスずつ)
+const BLOCK_SIZES = [
+  { v: 0, label: '1マスずつ' },
+  { v: 5, label: '5×5' },
+  { v: 10, label: '10×10' },
+  { v: 20, label: '20×20' },
+];
 
 const MIN_CELL_SIZE = 2;
 const MAX_CELL_SIZE = 48;
@@ -104,6 +113,7 @@ export function BeadCanvas(props) {
   const panRef = useRef(null); // 1本指パン
   const [fullscreen, setFullscreen] = useState(false);
   const [view, setView] = useState({ scale: 1, tx: 0, ty: 0 }); // 全画面の表示変換
+  const [checkBlock, setCheckBlock] = useState(0); // 区画チェックのブロックサイズ(0=1マスずつ)
 
   const interactive = editingEnabled || checkMode;
   const pointerActive = interactive || fullscreen; // 全画面は非編集でもパン/ズーム可
@@ -221,6 +231,29 @@ export function BeadCanvas(props) {
     return { x, y };
   };
 
+  // 区画(ブロック)チェック用: cell を含む bs×bs ブロックのマス一覧(図案の端で切り詰め)
+  const blockCellsAt = (cell, bs) => {
+    const ox = Math.floor(cell.x / bs) * bs;
+    const oy = Math.floor(cell.y / bs) * bs;
+    const cells = [];
+    for (let y = oy; y < Math.min(oy + bs, pattern.height); y++) {
+      for (let x = ox; x < Math.min(ox + bs, pattern.width); x++) cells.push({ x, y });
+    }
+    return { ox, oy, cells };
+  };
+  // ブロック内のビーズ(背景以外)が全部チェック済みか。ビーズが無ければ false。
+  const blockFullyDone = (cells) => {
+    let hasBead = false;
+    for (const { x, y } of cells) {
+      const idx = y * pattern.width + x;
+      const c = pattern.cells[idx];
+      if (!c || c.colorId === BACKGROUND_COLOR_ID) continue;
+      hasBead = true;
+      if (!(doneSet && doneSet.has(idx))) return false;
+    }
+    return hasBead;
+  };
+
   const startGesture = () => {
     const pts = [...pointersRef.current.values()];
     if (pts.length < 2) return;
@@ -229,6 +262,7 @@ export function BeadCanvas(props) {
     const d = dragRef.current;
     if (d && !d.moved) {
       if (d.type === 'check' && d.last && onSetDone) onSetDone([d.last], !d.markDone);
+      else if (d.type === 'checkblock' && d.cells && onSetDone) onSetDone(d.cells, !d.markDone);
       else if (d.type === 'draw' && onUndo) onUndo(); // 1本目downで積んだ誤描画＋履歴を取り消す
     }
     dragRef.current = null; // 描画を中断
@@ -271,6 +305,14 @@ export function BeadCanvas(props) {
       if (!cell) return;
       e.preventDefault();
       if (checkMode) {
+        if (checkBlock > 0) {
+          // 区画(ブロック)チェック: ブロックごと一気にチェック/解除
+          const { ox, oy, cells } = blockCellsAt(cell, checkBlock);
+          const markDone = !blockFullyDone(cells);
+          dragRef.current = { type: 'checkblock', markDone, lastBlock: ox + ',' + oy, bs: checkBlock, cells, pointerId: e.pointerId };
+          onSetDone && onSetDone(cells, markDone);
+          return;
+        }
         const idx = cell.y * pattern.width + cell.x;
         dragRef.current = { type: 'check', markDone: !(doneSet && doneSet.has(idx)), last: cell, pointerId: e.pointerId };
         onSetDone && onSetDone([cell], dragRef.current.markDone);
@@ -298,6 +340,17 @@ export function BeadCanvas(props) {
       if (d.pointerId != null && e.pointerId !== d.pointerId) return; // 開始した指だけ追跡
       const cell = cellFromEvent(e);
       if (!cell) return;
+      if (d.type === 'checkblock') {
+        // ドラッグで別のブロックに入ったら、そのブロックも同じ向きでチェック/解除
+        const { ox, oy, cells } = blockCellsAt(cell, d.bs);
+        const key = ox + ',' + oy;
+        if (key === d.lastBlock) return;
+        d.lastBlock = key;
+        d.cells = cells;
+        onSetDone && onSetDone(cells, d.markDone);
+        d.moved = true;
+        return;
+      }
       if (cell.x === d.last.x && cell.y === d.last.y) return;
       const line = lineCells(d.last, cell);
       if (d.type === 'check') onSetDone && onSetDone(line, d.markDone);
@@ -375,6 +428,15 @@ export function BeadCanvas(props) {
                 class=${'btn btn--sm bead-canvas__check ' + (checkMode ? 'btn--primary' : 'btn--ghost')}
                 title="作ったマスをタップして消し込みチェックします"
                 onClick=${() => onToggleCheckMode()}>${checkMode ? '✓ チェック中' : '✓ 作業チェック'}</button>`
+            : null}
+          ${checkMode
+            ? html`<label class="bead-canvas__block" title="区画(ブロック)をタップで一気にチェックできます">
+                <span class="bead-canvas__block-label">区画</span>
+                <select class="bead-canvas__block-sel field" value=${String(checkBlock)}
+                  onChange=${(e) => setCheckBlock(Number(e.target.value) || 0)}>
+                  ${BLOCK_SIZES.map((b) => html`<option key=${b.v} value=${String(b.v)}>${b.label}</option>`)}
+                </select>
+              </label>`
             : null}
         </div>
         <div class="bead-canvas__info muted">

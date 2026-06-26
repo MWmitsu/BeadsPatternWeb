@@ -80,6 +80,9 @@ export function ProjectList(props) {
                           ${isActive
                             ? html`<span class="badge projects__current-badge">編集中</span>`
                             : null}
+                          ${p.inventoryReflected
+                            ? html`<span class="badge badge--on projects__done-badge">完成・在庫反映</span>`
+                            : null}
                         </div>
                         <dl class="projects__meta">
                           <span class="projects__meta-item">サイズ ${p.width}×${p.height}</span>

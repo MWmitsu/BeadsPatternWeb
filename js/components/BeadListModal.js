@@ -2,8 +2,10 @@
 // BeadListModal: 買い物＆在庫に使える「ビーズリスト」モーダル
 // ------------------------------------------------------------
 // 各色の 色見本 / 色名 / 商品番号(ブランド選択時) / 使用数・必要数 を一覧。
-// ビーズ色(ブランド)選択時は商品色ごとにまとめ、手持ち数(在庫)を記録して
-// 「必要数 − 手持ち = 不足(買い足し)」を表示する。完成サイズ(cm)も表示。
+// ビーズ色(ブランド)選択時は商品色ごとにまとめ、在庫を管理する:
+//   手持ち(買った数) − 消費(完成作品で使った数) = 残り。
+//   「必要 − 残り = 不足(買い足し)」を表示。手持ちは ＋(買い足し)/−(使った) で増減。
+//   「完成にして在庫から引く」で、この作品の使用分を在庫の消費として記録(取り消し可)。
 // ============================================================
 
 import { html } from '../lib/html.js';
@@ -21,6 +23,11 @@ export function BeadListModal(props) {
     width = 0,
     height = 0,
     inventory = {},
+    consumed = {},
+    reflected = false,
+    canReflect = false,
+    projectTitle = '',
+    onToggleReflect,
     onSetInventory,
     onClose,
   } = props;
@@ -36,9 +43,11 @@ export function BeadListModal(props) {
   // ビーズ色(ブランド)選択時は商品色ごとにまとめ、在庫管理を有効にする。
   const hasPalette = !!(beadPaletteColors && beadPaletteColors.length);
   const canInventory = hasPalette && !!onSetInventory;
+  const showReflect = hasPalette && canReflect && !!onToggleReflect;
   let groups = null;
   let totalShort = 0;
   let colorsShort = 0;
+  let anyConsumed = false;
   if (hasPalette) {
     const map = new Map();
     for (const c of sorted) {
@@ -52,17 +61,24 @@ export function BeadListModal(props) {
     groups = [...map.values()].sort((a, b) => b.need - a.need);
     for (const g of groups) {
       const owned = Number(inventory[`${beadPaletteId}:${g.code}`]) || 0;
-      const short = Math.max(0, g.need - owned);
+      const used = Number(consumed[`${beadPaletteId}:${g.code}`]) || 0; // 他の完成作品の消費
+      const remaining = Math.max(0, owned - used); // 残り(他作品の使用を引いた手持ち)
+      const short = Math.max(0, g.need - remaining);
       g.owned = owned;
+      g.used = used;
+      g.remaining = remaining;
       g.short = short;
+      if (used > 0) anyConsumed = true;
       if (short > 0) { totalShort += short; colorsShort++; }
     }
   }
 
-  const onOwnedInput = (code, raw) => {
+  const setOwned = (code, value) => {
     if (!onSetInventory) return;
-    onSetInventory(`${beadPaletteId}:${code}`, raw);
+    onSetInventory(`${beadPaletteId}:${code}`, value);
   };
+  const onOwnedInput = (code, raw) => setOwned(code, raw);
+  const bump = (g, delta) => setOwned(g.code, String(Math.max(0, g.owned + delta)));
 
   return html`
     <div class="beadlist" role="dialog" aria-modal="true" aria-label="ビーズ一覧">
@@ -78,12 +94,25 @@ export function BeadListModal(props) {
           ${canInventory
             ? (totalShort > 0
                 ? html`<br /><b class="beadlist__short-sum">買い足し ${totalShort.toLocaleString()}個（${colorsShort}色）</b>`
-                : html`<br /><b class="beadlist__enough">手持ちで足りています 🎉</b>`)
+                : html`<br /><b class="beadlist__enough">手持ち（残り）で足りています 🎉</b>`)
             : null}
         </div>
 
+        ${showReflect
+          ? html`
+            <div class=${'beadlist__reflect' + (reflected ? ' beadlist__reflect--on' : '')}>
+              ${reflected
+                ? html`
+                    <span class="beadlist__reflect-on">✅ この作品は完成・在庫に反映済み</span>
+                    <button class="btn btn--ghost btn--sm" type="button" onClick=${onToggleReflect}>反映を取り消す</button>`
+                : html`
+                    <button class="btn btn--primary btn--sm" type="button" onClick=${onToggleReflect}>✅ 完成にして在庫から引く</button>
+                    <span class="muted beadlist__reflect-hint">この作品で使った分を在庫から差し引きます（取り消しOK）。</span>`}
+            </div>`
+          : null}
+
         ${!hasPalette
-          ? html`<p class="beadlist__hint muted">「制作・共有ツール」でビーズ色（ブランド）を選ぶと、商品番号と<b>在庫管理（手持ち数と買い足し）</b>が使えます。</p>`
+          ? html`<p class="beadlist__hint muted">「制作・共有ツール」でビーズ色（ブランド）を選ぶと、商品番号と<b>在庫管理（手持ち・買い足し・完成で在庫を引く）</b>が使えます。</p>`
           : null}
 
         <div class="beadlist__list">
@@ -95,21 +124,30 @@ export function BeadListModal(props) {
                       <span class="beadlist__dot" style=${`background:${g.hex}`}></span>
                       <div class="beadlist__info">
                         <div class="beadlist__name">${g.name}</div>
-                        <div class="beadlist__no muted">色番号：${g.code}・必要 ${g.need.toLocaleString()}個</div>
+                        <div class="beadlist__no muted">
+                          色番号：${g.code}・必要 ${g.need.toLocaleString()}個${g.used > 0 ? `・他作品で使用 ${g.used.toLocaleString()}` : ''}
+                        </div>
                       </div>
-                      <label class="beadlist__inv">
+                      <div class="beadlist__inv">
                         <span class="beadlist__inv-label muted">手持ち</span>
-                        <input
-                          class="beadlist__inv-input field"
-                          type="number"
-                          inputmode="numeric"
-                          min="0"
-                          placeholder="0"
-                          value=${g.owned > 0 ? String(g.owned) : ''}
-                          onInput=${(e) => onOwnedInput(g.code, e.target.value)}
-                        />
-                      </label>
+                        <div class="beadlist__stepper">
+                          <button type="button" class="beadlist__step" onClick=${() => bump(g, -1)} aria-label="使った（1減らす）" title="使った（−1）">−</button>
+                          <input
+                            class="beadlist__inv-input field"
+                            type="number"
+                            inputmode="numeric"
+                            min="0"
+                            placeholder="0"
+                            value=${g.owned > 0 ? String(g.owned) : ''}
+                            onInput=${(e) => onOwnedInput(g.code, e.target.value)}
+                          />
+                          <button type="button" class="beadlist__step" onClick=${() => bump(g, 1)} aria-label="買い足し（1増やす）" title="買い足し（＋1）">＋</button>
+                        </div>
+                      </div>
                       <div class="beadlist__count">
+                        ${anyConsumed
+                          ? html`<span class="beadlist__remain muted">残り ${g.remaining.toLocaleString()}</span>`
+                          : null}
                         ${g.short > 0
                           ? html`<span class="beadlist__short">買い足し ${g.short.toLocaleString()}個</span>`
                           : html`<span class="beadlist__ok">足りてる ✓</span>`}
@@ -143,7 +181,7 @@ export function BeadListModal(props) {
             ? html`<span class="muted beadlist__foot-note">「必要数」は使用個数に予備${bufferPercent}%を足した目安です。</span>`
             : null}
           ${canInventory
-            ? html`<span class="muted beadlist__foot-note">手持ち数は自動で保存され、ほかの図案にも引き継がれます。</span>`
+            ? html`<span class="muted beadlist__foot-note">手持ちは ＋（買い足し）／−（使った）で増減でき、自動保存・他の図案にも引き継がれます。完成作品の分は「完成にして在庫から引く」で記録します。</span>`
             : null}
           <button class="btn btn--primary" type="button" onClick=${onClose}>閉じる</button>
         </div>
