@@ -30,6 +30,7 @@ import {
   clearDraft,
   loadInventory,
   saveInventory,
+  saveAllProjects,
   exportAllData,
   importAllData,
 } from './utils/storage.js';
@@ -43,6 +44,8 @@ import { ProjectList } from './components/ProjectList.js';
 import { CropModal } from './components/CropModal.js';
 import { ToolsPanel } from './components/ToolsPanel.js';
 import { BeadListModal } from './components/BeadListModal.js';
+import { CloudSyncPanel } from './components/CloudSyncPanel.js';
+import * as cloudSync from './lib/cloudSync.js';
 import { QrModal } from './components/QrModal.js';
 import { makeQrMatrix } from './lib/qrcode.js';
 import { TextStudioModal } from './components/TextStudioModal.js';
@@ -277,12 +280,55 @@ export function App() {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const noticeTimer = useRef(null);
+  const [cloudStatus, setCloudStatus] = useState({ available: true, signedIn: false, email: '', busy: false });
 
   const flash = (msg) => {
     setNotice(msg);
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
     noticeTimer.current = setTimeout(() => setNotice(null), 2500);
   };
+
+  // ---- クラウド同期(Googleログイン / Firebase) ----
+  // 保存図案＋在庫を1ユーザー1ドキュメントに同期。Firebase は初回ログイン時に遅延読込。
+  useEffect(() => {
+    const stripThumb = (p) => { const { thumbnail, ...rest } = p; return rest; };
+    cloudSync.init({
+      // ローカルの最新を返す(localStorageが真実。クラウドは軽量化のため画像=サムネを外す)
+      getLocal: () => ({ projects: loadProjects().map(stripThumb), inventory: loadInventory() }),
+      // クラウドの内容をローカルへ反映(系統ごと・部分適用)。既存ローカルのサムネは保持。
+      // 端末への保存が成功したかを返す(false=保存失敗。cloudSync は基準を更新せず再取得する)。
+      applyRemote: (data) => {
+        let ok = true;
+        if (data && 'projects' in data) {
+          const incoming = Array.isArray(data.projects) ? data.projects : [];
+          const localById = new Map(loadProjects().map((p) => [p.id, p]));
+          const merged = incoming.map((p) => {
+            const local = localById.get(p.id);
+            if (local && local.thumbnail && !p.thumbnail) return { ...p, thumbnail: local.thumbnail };
+            return p;
+          });
+          const pr = saveAllProjects(merged);
+          if (pr.ok) setProjects(loadProjects());
+          else { flash(pr.error || 'この端末に図案を保存しきれませんでした。'); ok = false; }
+        }
+        if (data && 'inventory' in data) {
+          const inv = data.inventory && typeof data.inventory === 'object' && !Array.isArray(data.inventory) ? data.inventory : {};
+          if (saveInventory(inv)) setInventory(inv);
+          else { flash('この端末に在庫を保存できませんでした（保存容量がいっぱいかもしれません）。'); ok = false; }
+        }
+        return ok;
+      },
+      onStatus: (st) => setCloudStatus(st),
+      confirmConflict: () =>
+        window.confirm('この端末とクラウドの両方にデータがあります。\n\n「OK」＝クラウドのデータを使う\n「キャンセル」＝この端末のデータを使う'),
+      toast: (m) => {
+        setNotice(m);
+        if (noticeTimer.current) clearTimeout(noticeTimer.current);
+        noticeTimer.current = setTimeout(() => setNotice(null), 3800);
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ---- 変換(縮小 → 色判定) ----
   // img を直接受け取るので state 反映前でも実行できる(画像読込直後の自動変換に使う)。
@@ -1150,6 +1196,7 @@ export function App() {
       setCurrentId(proj.id);
       draftIdRef.current = proj.id;
       setProjects(loadProjects());
+      cloudSync.notifyLocalChange('projects');
       flash('このブラウザに保存しました。');
     } else {
       setError(res.error || '保存に失敗しました。');
@@ -1237,6 +1284,7 @@ export function App() {
   const handleDeleteProject = (id) => {
     deleteProject(id);
     setProjects(loadProjects());
+    cloudSync.notifyLocalChange('projects');
     if (currentId === id) setCurrentId(null);
   };
 
@@ -1249,6 +1297,7 @@ export function App() {
       if (!raw || !Number.isFinite(n) || n <= 0) delete next[key];
       else next[key] = n;
       saveInventory(next);
+      cloudSync.notifyLocalChange('inventory');
       return next;
     });
   };
@@ -1280,6 +1329,7 @@ export function App() {
     }
     setProjects(loadProjects());
     setInventory(loadInventory());
+    cloudSync.notifyLocalChange('all');
     flash(`バックアップから復元しました（図案 ${res.projects} 件）。`);
   };
 
@@ -1411,6 +1461,11 @@ export function App() {
             currentId=${currentId}
             onLoad=${handleLoadProject}
             onDelete=${handleDeleteProject}
+          />
+          <${CloudSyncPanel}
+            status=${cloudStatus}
+            onSignIn=${() => cloudSync.signIn()}
+            onSignOut=${() => cloudSync.signOut()}
           />
         </div>
 

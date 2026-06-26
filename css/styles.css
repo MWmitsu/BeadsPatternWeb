@@ -1009,6 +1009,16 @@ input.warn--error {
 .beadlist__short { font-size: 0.9em; font-weight: 700; color: var(--warn-text, #b26a00); white-space: nowrap; }
 .beadlist__ok { font-size: 0.82em; color: var(--accent-strong, #1aa37a); white-space: nowrap; }
 
+/* クラウド同期パネル */
+.cloudsync__lead { margin: 0 0 10px; }
+.cloudsync__status { margin: 0 0 10px; line-height: 1.6; }
+.cloudsync__on { color: var(--accent-strong, #1aa37a); }
+.cloudsync__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cloudsync__signin { font-weight: 700; }
+.cloudsync__note { margin: 10px 0 0; font-size: 0.78em; }
+.cloudsync__error { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; font-size: 0.85em; background: rgba(220, 80, 60, 0.12); color: var(--danger-text, #b3261e); }
+.badge--on { background: var(--accent-strong, #1aa37a); color: #fff; }
+
 /* QRコードで共有 モーダル */
 .qrmodal {
   position: fixed;

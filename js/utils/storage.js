@@ -121,6 +121,21 @@ export function loadProject(id) {
 }
 
 /**
+ * プロジェクト一覧をまるごと置き換えて保存する(クラウド同期の取り込み用)。
+ * @param {Array} projects
+ * @returns {{ok:boolean, error?:string}}
+ */
+export function saveAllProjects(projects) {
+  try {
+    const list = Array.isArray(projects) ? projects.filter((p) => p && typeof p === 'object' && p.id) : [];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    return { ok: true };
+  } catch {
+    return { ok: false, error: '保存できませんでした（保存できる量を超えている可能性があります）。' };
+  }
+}
+
+/**
  * id 指定でプロジェクトを削除する。
  * @param {string} id
  */
