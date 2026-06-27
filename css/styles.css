@@ -6,54 +6,68 @@
    - @media print(印刷用ビュー)
    ============================================================ */
 
-/* ---- デザイントークン -------------------------------------- */
+/* ---- デザイントークン（2026 リニューアル: 温かみのあるクラフト調・丸み・余白多め） ---- */
 :root {
-  --accent: #2b8a78;
-  --accent-strong: #247a69;
-  --accent-weak: #e6f3f0;
+  --accent: #ef6c5a;          /* コーラル（ブランド/主要操作） */
+  --accent-strong: #e0573f;
+  --accent-weak: #fdeeea;     /* コーラルの薄い面 */
   --on-accent: #ffffff;
 
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --surface-2: #f1f3f6;
-  --border: #dde2e8;
-  --text: #1f2933;
-  --muted: #6b7682;
+  --accent2: #1aa37a;         /* ティール（完了・成功の補助色） */
+  --accent2-strong: #138463;
+  --accent2-weak: #e4f5ef;
 
-  --danger: #d64545;
-  --danger-weak: #fdecec;
-  --warn-bg: #fff7e6;
+  --bg: #faf6f0;              /* 温かいクリームの背景 */
+  --surface: #ffffff;
+  --surface-2: #f4eee6;       /* 薄い面（見出し帯・入力背景） */
+  --border: #ece3d7;
+  --text: #38322c;
+  --muted: #8d857a;
+
+  --danger: #d8503f;
+  --danger-weak: #fcebe8;
+  --warn-bg: #fff5e2;
   --warn-border: #f0c36d;
   --warn-text: #8a5a00;
-  --ok-bg: #e7f6ee;
+  --ok-bg: #e6f6ef;
   --ok-border: #8fd3ad;
-  --ok-text: #1d7a47;
+  --ok-text: #16794a;
 
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --radius: 10px;
-  --radius-sm: 7px;
+  --shadow: 0 2px 10px rgba(80, 55, 30, 0.07), 0 1px 3px rgba(80, 55, 30, 0.05);
+  --shadow-lg: 0 8px 28px rgba(80, 55, 30, 0.14);
+  --radius: 16px;
+  --radius-sm: 11px;
+  --radius-pill: 999px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --accent: #36a890;
-    --accent-strong: #44b89f;
-    --accent-weak: #1b2b28;
-    --bg: #14171b;
-    --surface: #1f242b;
-    --surface-2: #272d35;
-    --border: #343c46;
-    --text: #e6e9ed;
-    --muted: #99a3ae;
-    --danger: #f06a6a;
-    --danger-weak: #3a2222;
+    --accent: #f3826f;
+    --accent-strong: #ff9986;
+    --accent-weak: #3a241f;
+    --on-accent: #2a140f;
+
+    --accent2: #3bbf9a;
+    --accent2-strong: #54d3ae;
+    --accent2-weak: #16302a;
+
+    --bg: #17151a;
+    --surface: #211e25;
+    --surface-2: #2a2630;
+    --border: #3a3541;
+    --text: #ece7f0;
+    --muted: #a59db0;
+
+    --danger: #f0726a;
+    --danger-weak: #3a2220;
     --warn-bg: #322a17;
     --warn-border: #6b5526;
     --warn-text: #e7c483;
-    --ok-bg: #18301f;
+    --ok-bg: #173024;
     --ok-border: #2f6a45;
     --ok-text: #8fd3ad;
-    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.55);
   }
 }
 
@@ -70,8 +84,8 @@ body {
     "Yu Gothic UI", Meiryo, sans-serif;
   background: var(--bg);
   color: var(--text);
-  line-height: 1.5;
-  font-size: 14px;
+  line-height: 1.55;
+  font-size: 15px;
 }
 
 h1, h2, h3 { margin: 0; font-weight: 700; }
@@ -113,16 +127,16 @@ select {
   font: inherit;
   color: var(--text);
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 6px 9px;
+  padding: 9px 11px;
   max-width: 100%;
 }
 
 input[type="text"]:focus,
 input[type="number"]:focus,
 select:focus {
-  outline: 2px solid var(--accent);
+  outline: 3px solid var(--accent-weak);
   outline-offset: 0;
   border-color: var(--accent);
 }
@@ -133,34 +147,37 @@ input[type="range"] { accent-color: var(--accent); }
 input[type="checkbox"],
 input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; }
 
-/* ---- ボタン ------------------------------------------------ */
+/* ---- ボタン（丸み・指で押しやすい大きさ） ------------------ */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 14px;
-  font-size: 0.9em;
-  font-weight: 600;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  min-height: 42px;
+  padding: 9px 18px;
+  font-size: 0.94em;
+  font-weight: 700;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+  transition: background 0.12s, border-color 0.12s, transform 0.06s, box-shadow 0.12s, opacity 0.12s;
 }
 .btn:hover { background: var(--surface-2); }
-.btn:active { transform: translateY(1px); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
 .btn--primary {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
+  box-shadow: 0 2px 8px rgba(239, 108, 90, 0.28);
 }
 .btn--primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.btn--primary:disabled { box-shadow: none; }
 
-.btn--ghost { background: transparent; }
+.btn--ghost { background: transparent; border-color: transparent; }
 .btn--ghost:hover { background: var(--surface-2); }
 
 .btn--danger {
@@ -170,9 +187,10 @@ input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; }
 }
 .btn--danger:hover { background: var(--danger-weak); border-color: var(--danger); }
 
-.btn--sm { padding: 4px 9px; font-size: 0.82em; }
+.btn--sm { min-height: 34px; padding: 5px 12px; font-size: 0.85em; }
+.btn--block { width: 100%; }
 
-/* ---- パネル ------------------------------------------------ */
+/* ---- パネル（やわらかいカード） ---------------------------- */
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -185,13 +203,13 @@ input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; }
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding: 11px 14px;
-  font-size: 0.98em;
+  padding: 13px 16px;
+  font-size: 1.0em;
   font-weight: 700;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
 }
-.panel__body { padding: 13px 14px; }
+.panel__body { padding: 15px 16px; }
 
 /* 折りたたみパネル（details/summary）。見出しを押して開閉する。既定は閉じる。 */
 .panel--collapsible > summary.panel__title {
@@ -265,34 +283,154 @@ input.warn--error {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
-.app__title-field input { min-width: 220px; }
+.app__title-field input { min-width: 0; flex: 1 1 auto; max-width: 320px; }
 
+/* 3ゾーン: ① つくる(make) / 図案(figure) / ② 仕上げ(rightcol=色・道具・保存) */
 .app__main {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr) 360px;
-  gap: 14px;
+  grid-template-columns: 350px minmax(0, 1fr) 360px;
+  gap: 16px;
   align-items: start;
   padding: 0 16px 28px;
 }
-.app__col {
+.app__rightcol,
+.zone {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   min-width: 0;
 }
 
-/* タブレット: 右カラムを下へ回す */
-@media (max-width: 1180px) {
-  .app__main { grid-template-columns: 320px minmax(0, 1fr); }
-  .app__col--right { grid-column: 1 / -1; }
+/* ゾーンの見出し（番号つき） */
+.zone__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95em;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 2px 2px 0;
 }
-/* スマホ: 完全に縦積み */
+.zone__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.8em;
+  font-weight: 700;
+}
+
+/* 図案がまだ無いときのプレースホルダ */
+.figure-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  min-height: 240px;
+  padding: 30px 20px;
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+.figure-empty__icon { font-size: 2.6em; }
+.figure-empty__text { margin: 0; line-height: 1.8; }
+
+/* 最初（からっぽ）: 中央に寄せて、写真選択と保存図案だけ見せる */
+.app__main--empty {
+  display: flex;
+  flex-direction: column;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+.app__main--empty .app__rightcol { display: contents; }
+.app__main--empty .zone--figure,
+.app__main--empty .zone--colors,
+.app__main--empty .zone--tools { display: none; }
+
+/* タブレット: 1カラムに積む（図案→色→道具→保存の自然な順） */
+@media (max-width: 1100px) {
+  .app__main { display: flex; flex-direction: column; }
+  .app__rightcol { display: contents; }
+}
+
+/* スマホ: 下タブで1セクションずつ表示 */
 @media (max-width: 820px) {
-  .app__main { grid-template-columns: 1fr; }
-  .app__col--left,
-  .app__col--center,
-  .app__col--right { grid-column: auto; }
+  .app__main { display: flex; flex-direction: column; padding-bottom: 86px; }
+  .app__rightcol { display: contents; }
+  .app__main[data-tab] [data-sec] { display: none; }
+  .app__main[data-tab="figure"] [data-sec="figure"],
+  .app__main[data-tab="figure"] [data-sec="make"],
+  .app__main[data-tab="colors"] [data-sec="colors"],
+  .app__main[data-tab="tools"] [data-sec="tools"],
+  .app__main[data-tab="save"] [data-sec="save"] { display: flex; }
+  .app__main[data-tab="figure"] [data-sec="figure"] { order: 1; }
+  .app__main[data-tab="figure"] [data-sec="make"] { order: 2; }
+  /* からっぽ時はタブ非表示・つくる/保存のみ表示 */
+  .app__main--empty { padding-bottom: 28px; }
+  .app__main--empty[data-tab] [data-sec] { display: none; }
+  .app__main--empty[data-tab] [data-sec="make"],
+  .app__main--empty[data-tab] [data-sec="save"] { display: flex; }
+  .app__main--empty .zone__label { display: none; }
+}
+
+/* スマホ下タブバー（図案/色/道具/保存） */
+.tabbar { display: none; }
+@media (max-width: 820px) {
+  .tabbar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -3px 14px rgba(80, 55, 30, 0.1);
+    padding: 5px 4px;
+    padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px));
+  }
+  .tabbar__btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-height: 52px;
+    padding: 6px 2px 4px;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+  /* 現在地は「濃い文字＋コーラルのアイコン＋上の帯」で示す（薄色の文字を避け読みやすく） */
+  .tabbar__btn.is-active { color: var(--text); background: var(--accent-weak); }
+  .tabbar__btn.is-active .tabbar__icon { color: var(--accent-strong); }
+  .tabbar__btn.is-active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 16%;
+    right: 16%;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--accent);
+  }
+  .tabbar__icon { font-size: 1.4em; line-height: 1; }
+  .tabbar__label { font-size: 0.8em; }
 }
 
 /* ---- バナー(エラー/成功) ---------------------------------- */
@@ -1005,7 +1143,7 @@ input.warn--error {
 /* ビーズ在庫(手持ち数・不足) */
 .beadlist__hint { padding: 8px 14px; font-size: 0.82em; border-bottom: 1px solid var(--border); }
 .beadlist__short-sum { color: var(--warn-text, #b26a00); }
-.beadlist__enough { color: var(--accent-strong, #1aa37a); }
+.beadlist__enough { color: var(--accent2-strong); }
 .beadlist__row--short { background: rgba(255, 170, 0, 0.08); }
 .beadlist__inv { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 auto; }
 .beadlist__inv-label { font-size: 0.7em; }
@@ -1014,23 +1152,23 @@ input.warn--error {
 .beadlist__step { width: 30px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface, #fff); font-size: 1.1em; line-height: 1; cursor: pointer; flex: 0 0 auto; }
 .beadlist__step:active { background: var(--surface-2, #eee); }
 .beadlist__short { font-size: 0.9em; font-weight: 700; color: var(--warn-text, #b26a00); white-space: nowrap; }
-.beadlist__ok { font-size: 0.82em; color: var(--accent-strong, #1aa37a); white-space: nowrap; }
+.beadlist__ok { font-size: 0.82em; color: var(--accent2-strong); white-space: nowrap; }
 .beadlist__remain { display: block; font-size: 0.74em; }
 /* 完成→在庫反映バー */
 .beadlist__reflect { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: rgba(26, 163, 122, 0.06); }
 .beadlist__reflect--on { background: rgba(26, 163, 122, 0.12); }
-.beadlist__reflect-on { font-weight: 700; color: var(--accent-strong, #1aa37a); }
+.beadlist__reflect-on { font-weight: 700; color: var(--accent2-strong); }
 .beadlist__reflect-hint { font-size: 0.78em; flex: 1 1 100%; margin: 0; }
 
 /* クラウド同期パネル */
 .cloudsync__lead { margin: 0 0 10px; }
 .cloudsync__status { margin: 0 0 10px; line-height: 1.6; }
-.cloudsync__on { color: var(--accent-strong, #1aa37a); }
+.cloudsync__on { color: var(--accent2-strong); }
 .cloudsync__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .cloudsync__signin { font-weight: 700; }
 .cloudsync__note { margin: 10px 0 0; font-size: 0.78em; }
-.cloudsync__error { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; font-size: 0.85em; background: rgba(220, 80, 60, 0.12); color: var(--danger-text, #b3261e); }
-.badge--on { background: var(--accent-strong, #1aa37a); color: #fff; }
+.cloudsync__error { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; font-size: 0.85em; background: var(--danger-weak); color: var(--danger); }
+.badge--on { background: var(--accent2-weak); color: var(--accent2-strong); }
 
 /* QRコードで共有 モーダル */
 .qrmodal {

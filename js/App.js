@@ -266,6 +266,7 @@ export function App() {
   // ---- 表示 ----
   const [viewMode, setViewMode] = useState('numbers');
   const [cellSize, setCellSize] = useState(12);
+  const [mobileTab, setMobileTab] = useState('figure'); // スマホ下タブ: figure | colors | tools | save
   const [editColorId, setEditColorId] = useState(null);
   const [checkMode, setCheckMode] = useState(false); // 作業チェックモード
   const [doneSet, setDoneSet] = useState(() => new Set()); // 作業済みセルの index(y*width+x)
@@ -399,10 +400,11 @@ export function App() {
         setViewMode('numbers');
         // 画面幅に収まるセルサイズへ自動フィット(スマホでは小さめ)
         setCellSize(autoFitCellSize(result.width));
-        // スマホでは結果が設定群の下に隠れるため、変換後にプレビューへスクロール
+        // スマホでは変換後に「図案」プレビューへスクロールして結果を見せる
         if (typeof window !== 'undefined' && window.innerWidth <= 820) {
+          setMobileTab('figure');
           setTimeout(() => {
-            const el = document.querySelector('.app__col--center');
+            const el = document.querySelector('[data-sec="figure"]');
             if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }, 60);
         }
@@ -1516,19 +1518,10 @@ export function App() {
       `}
       ${notice && html`<div class="banner banner--success"><span>${notice}</span></div>`}
 
-      <main class="app__main">
-        <!-- 左カラム -->
-        <div class="app__col app__col--left">
-          <details class="help">
-            <summary class="help__summary">はじめての方へ（使い方）</summary>
-            <ol class="help__steps">
-              <li>「画像を選ぶ」で写真を読み込みます（または<b>「サンプルで試す」</b>）。</li>
-              <li>横ビーズ数・縦ビーズ数と最大色数を決めて<b>「画像から変換」</b>を押します。</li>
-              <li>写真は<b>全体をそのままの比率</b>で取り込みます（マス目を写真の形に自動で合わせます）。必要なら<b>「画像の合わせ方」</b>で一部だけ切り抜くこともできます。</li>
-              <li>右の色一覧で色番号を確認します。色番号をクリックすると、その色だけ強調表示できます。印刷や、画像（PNG）・一覧データ（CSV／表計算ソフトで開けます）の保存もできます。</li>
-              <li><b>「制作・共有ツール」</b>で、市販ビーズ色の目安・必要数・作業チェック・共有が使えます。</li>
-            </ol>
-          </details>
+      <main class=${'app__main' + (pattern ? '' : ' app__main--empty')} data-tab=${mobileTab}>
+        <!-- ① つくる -->
+        <div class="zone zone--make" data-sec="make">
+          <div class="zone__label"><span class="zone__step">1</span>つくる</div>
           <${ImageUploader}
             onImage=${handleImage}
             originalUrl=${originalUrl}
@@ -1539,151 +1532,196 @@ export function App() {
             templates=${TEMPLATES}
             onTemplate=${handleTemplate}
           />
-          <${SettingsPanel}
-            settings=${settings}
-            onChange=${setSettings}
-            onConvert=${handleConvert}
-            converting=${converting}
-            canConvert=${!!image}
-            canCrop=${!!image}
-            onOpenCrop=${openCrop}
-            warnings=${warnings}
-          />
-          <${ExportPanel}
-            pattern=${exportPattern}
-            colors=${colors}
-            project=${project}
-            onSaveLocal=${handleSaveLocal}
-            onOpenPrint=${handleOpenPrint}
-            onImportProject=${(obj) => applyLoaded(obj, { sourceImageUrl: obj && obj.thumbnail })}
-            onBackupAll=${handleBackupAll}
-            onRestoreAll=${handleRestoreAll}
-            disabled=${!pattern}
-            bufferPercent=${settings.bufferPercent}
-            beadPaletteColors=${beadPaletteColors}
-          />
-          <${ProjectList}
-            projects=${projects}
-            currentId=${currentId}
-            onLoad=${handleLoadProject}
-            onDelete=${handleDeleteProject}
-          />
-          <${CloudSyncPanel}
-            status=${cloudStatus}
-            onSignIn=${() => cloudSync.signIn()}
-            onSignOut=${() => cloudSync.signOut()}
-          />
+          ${image || pattern
+            ? html`<${SettingsPanel}
+                settings=${settings}
+                onChange=${setSettings}
+                onConvert=${handleConvert}
+                converting=${converting}
+                canConvert=${!!image}
+                canCrop=${!!image}
+                onOpenCrop=${openCrop}
+                warnings=${warnings}
+              />`
+            : html`
+                <details class="help">
+                  <summary class="help__summary">はじめての方へ（使い方）</summary>
+                  <ol class="help__steps">
+                    <li><b>「写真をえらぶ」</b>で写真を読み込みます（または<b>「サンプル」「文字」</b>）。</li>
+                    <li>読み込むと自動で図案になります。サイズ（横ビーズ数）や色数を変えたいときは下の設定で調整します。</li>
+                    <li>写真は<b>全体をそのままの比率</b>で取り込みます（マス目を写真の形に自動で合わせます）。</li>
+                    <li><b>「色」</b>で色番号、<b>「道具」</b>で市販ビーズ色・必要数・作業チェック・在庫・共有が使えます。</li>
+                    <li><b>「保存」</b>で、この端末・印刷・バックアップ・クラウド同期ができます。</li>
+                  </ol>
+                </details>`}
         </div>
 
-        <!-- 中央カラム -->
-        <div class="app__col app__col--center">
-          <div class="viewmode">
-            ${VIEW_MODES.map(
-              (m) => html`
-                <button
-                  key=${m.key}
-                  type="button"
-                  class=${'viewmode__tab' + (viewMode === m.key ? ' viewmode__tab--active' : '')}
-                  onClick=${() => setViewMode(m.key)}
-                >
-                  ${m.label}
-                </button>
-              `
-            )}
+        <!-- 図案（主役） -->
+        <div class="zone zone--figure" data-sec="figure">
+          ${pattern
+            ? html`
+                <div class="viewmode">
+                  ${VIEW_MODES.map(
+                    (m) => html`
+                      <button
+                        key=${m.key}
+                        type="button"
+                        class=${'viewmode__tab' + (viewMode === m.key ? ' viewmode__tab--active' : '')}
+                        onClick=${() => setViewMode(m.key)}
+                      >
+                        ${m.label}
+                      </button>
+                    `
+                  )}
+                </div>
+
+                ${editColorId != null &&
+                html`
+                  <div class="edit-hint">
+                    <span>🖌 塗りモード：ドラッグ（押したまま動かす）でまとめて <b>${editColorLabel}</b> に塗れます。</span>
+                    <button class="btn btn--sm btn--ghost" type="button" onClick=${() => setEditColorId(null)}>やめる</button>
+                  </div>
+                `}
+
+                ${checkMode &&
+                html`
+                  <div class="edit-hint edit-hint--check">
+                    <span>✓ 作業チェック：ドラッグでまとめてチェック／解除できます（${doneCount} / ${totalBeads}）。</span>
+                    <button class="btn btn--sm btn--ghost" type="button" onClick=${() => setCheckMode(false)}>やめる</button>
+                  </div>
+                `}
+
+                <${BeadCanvas}
+                  pattern=${pattern}
+                  viewMode=${viewMode}
+                  originalUrl=${originalUrl}
+                  cellSize=${cellSize}
+                  onCellSizeChange=${setCellSize}
+                  plateMask=${plateMask}
+                  round=${settings.roundBeads}
+                  editingEnabled=${editColorId != null}
+                  editColorId=${editColorId}
+                  activeTool=${activeTool}
+                  onSetTool=${setActiveTool}
+                  onStrokeBegin=${pushHistory}
+                  onDraw=${handleDraw}
+                  onBucket=${handleBucketFill}
+                  onEyedrop=${handleEyedrop}
+                  canUndo=${history.past.length > 0}
+                  canRedo=${history.future.length > 0}
+                  onUndo=${undo}
+                  onRedo=${redo}
+                  mirrorX=${mirrorX}
+                  mirrorY=${mirrorY}
+                  onToggleMirrorX=${() => setMirrorX((v) => !v)}
+                  onToggleMirrorY=${() => setMirrorY((v) => !v)}
+                  checkMode=${checkMode}
+                  doneSet=${doneSet}
+                  totalBeads=${totalBeads}
+                  onSetDone=${handleSetDone}
+                  onToggleCheckMode=${toggleCheckMode}
+                />`
+            : html`
+                <div class="figure-empty">
+                  <div class="figure-empty__icon" aria-hidden="true">🧩</div>
+                  <p class="figure-empty__text">ここに図案が出ます。<br />左上の<b>「写真をえらぶ」</b>から始めましょう。</p>
+                </div>`}
+        </div>
+
+        <!-- ② 仕上げ・ほぞん（色 / 道具 / 保存） -->
+        <div class="app__rightcol">
+          <div class="zone zone--colors" data-sec="colors">
+            ${pattern
+              ? html`<${ColorPalette}
+                  colors=${colors}
+                  totalBeads=${totalBeads}
+                  beadPaletteColors=${beadPaletteColors}
+                  bufferPercent=${settings.bufferPercent}
+                  editColorId=${editColorId}
+                  onSelectEditColor=${selectEditColor}
+                  onEditColor=${handleEditColor}
+                  onMergeColors=${handleMergeColors}
+                />`
+              : null}
           </div>
-
-          ${editColorId != null &&
-          html`
-            <div class="edit-hint">
-              <span>🖌 塗りモード：ドラッグ（押したまま動かす）でまとめて <b>${editColorLabel}</b> に塗れます。</span>
-              <button class="btn btn--sm btn--ghost" type="button" onClick=${() => setEditColorId(null)}>
-                やめる
-              </button>
-            </div>
-          `}
-
-          ${checkMode &&
-          html`
-            <div class="edit-hint edit-hint--check">
-              <span>✓ 作業チェック：ドラッグでまとめてチェック／解除できます（${doneCount} / ${totalBeads}）。</span>
-              <button class="btn btn--sm btn--ghost" type="button" onClick=${() => setCheckMode(false)}>やめる</button>
-            </div>
-          `}
-
-          <${BeadCanvas}
-            pattern=${pattern}
-            viewMode=${viewMode}
-            originalUrl=${originalUrl}
-            cellSize=${cellSize}
-            onCellSizeChange=${setCellSize}
-            plateMask=${plateMask}
-            round=${settings.roundBeads}
-            editingEnabled=${editColorId != null}
-            editColorId=${editColorId}
-            activeTool=${activeTool}
-            onSetTool=${setActiveTool}
-            onStrokeBegin=${pushHistory}
-            onDraw=${handleDraw}
-            onBucket=${handleBucketFill}
-            onEyedrop=${handleEyedrop}
-            canUndo=${history.past.length > 0}
-            canRedo=${history.future.length > 0}
-            onUndo=${undo}
-            onRedo=${redo}
-            mirrorX=${mirrorX}
-            mirrorY=${mirrorY}
-            onToggleMirrorX=${() => setMirrorX((v) => !v)}
-            onToggleMirrorY=${() => setMirrorY((v) => !v)}
-            checkMode=${checkMode}
-            doneSet=${doneSet}
-            totalBeads=${totalBeads}
-            onSetDone=${handleSetDone}
-            onToggleCheckMode=${toggleCheckMode}
-          />
-        </div>
-
-        <!-- 右カラム -->
-        <div class="app__col app__col--right">
-          <${ToolsPanel}
-            hasPattern=${!!pattern}
-            beadPalettes=${BEAD_PALETTES}
-            beadPaletteId=${settings.beadPaletteId}
-            onBeadPaletteChange=${(id) => setSettings({ ...settings, beadPaletteId: id })}
-            onSnapToBeads=${handleSnapToBeads}
-            paletteName=${beadPalette ? beadPalette.name : ''}
-            sizeMm=${beadPalette ? beadPalette.sizeMm : 0}
-            patternWidth=${pattern ? pattern.width : 0}
-            patternHeight=${pattern ? pattern.height : 0}
-            onOpenBeadList=${() => {
-              if (pattern) setBeadListOpen(true);
-              else setError('先に画像を変換してください。');
-            }}
-            onFlipH=${handleFlipH}
-            onFlipV=${handleFlipV}
-            onRotate=${handleRotate}
-            bufferPercent=${settings.bufferPercent}
-            onBufferChange=${(v) => setSettings({ ...settings, bufferPercent: v })}
-            checkMode=${checkMode}
-            onToggleCheckMode=${toggleCheckMode}
-            doneCount=${doneCount}
-            totalBeads=${totalBeads}
-            onResetDone=${handleResetDone}
-            onShareImage=${handleShareImage}
-            onShareLink=${handleShareLink}
-            onShareQr=${handleShareQr}
-          />
-          <${ColorPalette}
-            colors=${colors}
-            totalBeads=${totalBeads}
-            beadPaletteColors=${beadPaletteColors}
-            bufferPercent=${settings.bufferPercent}
-            editColorId=${editColorId}
-            onSelectEditColor=${selectEditColor}
-            onEditColor=${handleEditColor}
-            onMergeColors=${handleMergeColors}
-          />
+          <div class="zone zone--tools" data-sec="tools">
+            ${pattern
+              ? html`<${ToolsPanel}
+                  hasPattern=${!!pattern}
+                  beadPalettes=${BEAD_PALETTES}
+                  beadPaletteId=${settings.beadPaletteId}
+                  onBeadPaletteChange=${(id) => setSettings({ ...settings, beadPaletteId: id })}
+                  onSnapToBeads=${handleSnapToBeads}
+                  paletteName=${beadPalette ? beadPalette.name : ''}
+                  sizeMm=${beadPalette ? beadPalette.sizeMm : 0}
+                  patternWidth=${pattern ? pattern.width : 0}
+                  patternHeight=${pattern ? pattern.height : 0}
+                  onOpenBeadList=${() => { if (pattern) setBeadListOpen(true); }}
+                  onFlipH=${handleFlipH}
+                  onFlipV=${handleFlipV}
+                  onRotate=${handleRotate}
+                  bufferPercent=${settings.bufferPercent}
+                  onBufferChange=${(v) => setSettings({ ...settings, bufferPercent: v })}
+                  checkMode=${checkMode}
+                  onToggleCheckMode=${toggleCheckMode}
+                  doneCount=${doneCount}
+                  totalBeads=${totalBeads}
+                  onResetDone=${handleResetDone}
+                  onShareImage=${handleShareImage}
+                  onShareLink=${handleShareLink}
+                  onShareQr=${handleShareQr}
+                />`
+              : null}
+          </div>
+          <div class="zone zone--save" data-sec="save">
+            ${pattern
+              ? html`<${ExportPanel}
+                  pattern=${exportPattern}
+                  colors=${colors}
+                  project=${project}
+                  onSaveLocal=${handleSaveLocal}
+                  onOpenPrint=${handleOpenPrint}
+                  onImportProject=${(obj) => applyLoaded(obj, { sourceImageUrl: obj && obj.thumbnail })}
+                  onBackupAll=${handleBackupAll}
+                  onRestoreAll=${handleRestoreAll}
+                  disabled=${!pattern}
+                  bufferPercent=${settings.bufferPercent}
+                  beadPaletteColors=${beadPaletteColors}
+                />`
+              : null}
+            <${ProjectList}
+              projects=${projects}
+              currentId=${currentId}
+              onLoad=${handleLoadProject}
+              onDelete=${handleDeleteProject}
+            />
+            <${CloudSyncPanel}
+              status=${cloudStatus}
+              onSignIn=${() => cloudSync.signIn()}
+              onSignOut=${() => cloudSync.signOut()}
+            />
+          </div>
         </div>
       </main>
+
+      ${pattern &&
+      html`
+        <nav class="tabbar" aria-label="セクション切替">
+          ${[['figure', '🧩', '図案'], ['colors', '🎨', '色'], ['tools', '🧰', '道具'], ['save', '💾', '保存']].map(
+            ([k, ic, lb]) => html`
+              <button
+                key=${k}
+                type="button"
+                class=${'tabbar__btn' + (mobileTab === k ? ' is-active' : '')}
+                aria-current=${mobileTab === k ? 'page' : null}
+                onClick=${() => setMobileTab(k)}
+              >
+                <span class="tabbar__icon" aria-hidden="true">${ic}</span>
+                <span class="tabbar__label">${lb}</span>
+              </button>
+            `
+          )}
+        </nav>`}
 
       ${printing &&
       html`
