@@ -111,7 +111,7 @@ export const DEFAULT_SETTINGS = {
   showGrid: true,
   showNumbers: true,
   backgroundAsWhite: true,
-  removeBackground: false, // 背景を自動で消す(縁の背景色を透明化)。true時は透明扱い
+  removeBackground: true, // 既定で背景を自動で消す(縁の背景色を透明化)。被写体だけの図案にしやすい
   mergeStrength: '標準',
   fitMode: 'contain', // 'contain'(全体) | 'crop'(切り抜き)。既定は画像全体を比率そのままで取り込む(マス目を画像の形に合わせる)
   crop: null,         // 切り抜き範囲(正規化 {x,y,w,h} 0..1)。null は自動(中央カバー)

@@ -180,6 +180,15 @@ export function SettingsPanel(props) {
         <div class="field">
           <span class="field__label">背景の扱い</span>
           <div class="field__row settings__radio-row">
+            <label class="settings__radio" title="写真などの背景(まわりの色)を自動で消して、被写体だけの図案にします">
+              <input
+                type="radio"
+                name="settings-background"
+                checked=${settings.removeBackground === true}
+                onChange=${() => patch({ removeBackground: true })}
+              />
+              <span>背景を自動で消す（おすすめ）</span>
+            </label>
             <label class="settings__radio">
               <input
                 type="radio"
@@ -197,15 +206,6 @@ export function SettingsPanel(props) {
                 onChange=${() => patch({ backgroundAsWhite: false, removeBackground: false })}
               />
               <span>透明として扱う</span>
-            </label>
-            <label class="settings__radio" title="写真などの背景(まわりの色)を自動で消して、被写体だけの図案にします">
-              <input
-                type="radio"
-                name="settings-background"
-                checked=${settings.removeBackground === true}
-                onChange=${() => patch({ removeBackground: true })}
-              />
-              <span>背景を自動で消す</span>
             </label>
           </div>
           <p class="field__hint muted">「背景を自動で消す」は、写真などのまわりの色を消して被写体だけを残します（透明になります）。</p>
