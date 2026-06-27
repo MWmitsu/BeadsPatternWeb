@@ -7,7 +7,7 @@
 // mergeStrength を選ぶと detection.colorDistanceThreshold を追従させる。
 // ============================================================
 
-import { html, useState, useEffect } from '../lib/html.js';
+import { html, useState, useEffect, memo } from '../lib/html.js';
 import { MAX_COLOR_OPTIONS, MERGE_STRENGTH_THRESHOLD, FIT_MODES } from '../types.js';
 import { PLATE_SHAPES } from '../utils/plateShape.js';
 
@@ -21,7 +21,7 @@ import { PLATE_SHAPES } from '../utils/plateShape.js';
  * @param {boolean} props.canConvert
  * @param {string[]} props.warnings
  */
-export function SettingsPanel(props) {
+export const SettingsPanel = memo(function SettingsPanel(props) {
   const {
     settings,
     onChange,
@@ -346,4 +346,4 @@ export function SettingsPanel(props) {
       </div>
     </section>
   `;
-}
+});

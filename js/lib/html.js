@@ -81,6 +81,18 @@ export const {
   useRef,
   useCallback,
   useLayoutEffect,
+  memo,
   Fragment,
   createElement,
 } = React;
+
+/**
+ * 参照が安定したコールバックを返す(中身は毎レンダー最新を呼ぶ)。
+ * React.memo した子へ渡しても再描画を誘発せず、かつ stale closure にもならない。
+ * (提案中の React useEffectEvent と同等の安全パターン)
+ */
+export function useEvent(fn) {
+  const ref = useRef(fn);
+  ref.current = fn;
+  return useCallback((...args) => ref.current && ref.current(...args), []);
+}

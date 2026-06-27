@@ -10,7 +10,7 @@
 // 親(App)が projects 配列と現在編集中のIDを渡し、操作は onLoad/onDelete で通知。
 // ============================================================
 
-import { html } from '../lib/html.js';
+import { html, memo } from '../lib/html.js';
 
 /**
  * 更新日時(ISO文字列)を「YYYY/M/D HH:MM」の見やすい形に整形する。
@@ -38,7 +38,7 @@ function formatDateTime(iso) {
  * @param {(id: string) => void} props.onLoad 読込ボタン押下時
  * @param {(id: string) => void} props.onDelete 削除ボタン押下時(確認後に呼ぶ)
  */
-export function ProjectList(props) {
+export const ProjectList = memo(function ProjectList(props) {
   const { projects = [], currentId = null, onLoad, onDelete } = props;
 
   // 削除は誤操作防止のため確認を挟む
@@ -120,4 +120,4 @@ export function ProjectList(props) {
       </div>
     </details>
   `;
-}
+});

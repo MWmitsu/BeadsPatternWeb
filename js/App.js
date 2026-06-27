@@ -6,7 +6,7 @@
 // 子コンポーネントは表示と入力に専念し、ロジックはここに集約する。
 // ============================================================
 
-import { html, useState, useMemo, useRef, useEffect } from './lib/html.js';
+import { html, useState, useMemo, useRef, useEffect, useEvent } from './lib/html.js';
 import {
   DEFAULT_SETTINGS,
   WARN,
@@ -859,6 +859,14 @@ export function App() {
     if (id != null) { setCheckMode(false); setActiveTool('pen'); }
   };
 
+  // 参照の安定したコールバック(React.memo した子へ渡しても再描画を誘発しない)。
+  // 中身は毎レンダー最新を呼ぶので stale closure にならない。
+  const onSelectEditColorStable = useEvent(selectEditColor);
+  const onEditColorStable = useEvent(handleEditColor);
+  const onMergeColorsStable = useEvent(handleMergeColors);
+  const onConvertStable = useEvent(handleConvert);
+  const onOpenCropStable = useEvent(openCrop);
+
   // ---- 検出色を市販ビーズ色へスナップ ----
   const handleSnapToBeads = () => {
     if (!pattern) return;
@@ -1355,6 +1363,8 @@ export function App() {
     cloudSync.notifyLocalChange('projects');
     if (currentId === id) setCurrentId(null);
   };
+  const onLoadProjectStable = useEvent(handleLoadProject);
+  const onDeleteProjectStable = useEvent(handleDeleteProject);
 
   // ---- ビーズ在庫(手持ち数) ----
   // key = "<paletteId>:<colorCode>"。空入力は0(キー削除)。自動でlocalStorageへ保存。
@@ -1554,11 +1564,11 @@ export function App() {
             ? html`<${SettingsPanel}
                 settings=${settings}
                 onChange=${setSettings}
-                onConvert=${handleConvert}
+                onConvert=${onConvertStable}
                 converting=${converting}
                 canConvert=${!!image}
                 canCrop=${!!image}
-                onOpenCrop=${openCrop}
+                onOpenCrop=${onOpenCropStable}
                 warnings=${warnings}
               />`
             : html`
@@ -1658,9 +1668,9 @@ export function App() {
                   beadPaletteColors=${beadPaletteColors}
                   bufferPercent=${settings.bufferPercent}
                   editColorId=${editColorId}
-                  onSelectEditColor=${selectEditColor}
-                  onEditColor=${handleEditColor}
-                  onMergeColors=${handleMergeColors}
+                  onSelectEditColor=${onSelectEditColorStable}
+                  onEditColor=${onEditColorStable}
+                  onMergeColors=${onMergeColorsStable}
                 />`
               : null}
           </div>
@@ -1712,8 +1722,8 @@ export function App() {
             <${ProjectList}
               projects=${projects}
               currentId=${currentId}
-              onLoad=${handleLoadProject}
-              onDelete=${handleDeleteProject}
+              onLoad=${onLoadProjectStable}
+              onDelete=${onDeleteProjectStable}
             />
             <${CloudSyncPanel}
               status=${cloudStatus}

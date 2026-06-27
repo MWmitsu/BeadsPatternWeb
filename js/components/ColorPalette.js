@@ -7,7 +7,7 @@
 // 編集ツール(スポイト/塗りつぶし/Undo-Redo/作業チェック)は BeadCanvas 側に実装済み。残課題: 矩形範囲選択。
 // ============================================================
 
-import { html, useState, useEffect } from '../lib/html.js';
+import { html, useState, useEffect, memo } from '../lib/html.js';
 import { COLOR_NAMES } from '../types.js';
 import { isValidHex, normalizeHex, textColorFor } from '../utils/colorDistance.js';
 import { matchToPalette, neededCount } from '../utils/beadMatch.js';
@@ -21,7 +21,7 @@ import { matchToPalette, neededCount } from '../utils/beadMatch.js';
  * @param {(id: number, patch: {hex?: string, name?: string}) => void} props.onEditColor 色編集
  * @param {(fromId: number, toId: number) => void} props.onMergeColors 色統合
  */
-export function ColorPalette(props) {
+export const ColorPalette = memo(function ColorPalette(props) {
   const {
     colors = [],
     totalBeads = 0,
@@ -79,7 +79,7 @@ export function ColorPalette(props) {
       </div>
     </div>
   `;
-}
+});
 
 /**
  * パレットの1行(1色)。HEX/色名の編集はローカルstateで保持し、確定時に親へ通知する。
