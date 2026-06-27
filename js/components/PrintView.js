@@ -17,6 +17,7 @@ import {
 } from '../lib/renderPattern.js';
 import { textColorFor } from '../utils/colorDistance.js';
 import { matchToPalette, neededCount } from '../utils/beadMatch.js';
+import { useModalA11y } from '../lib/useModal.js';
 import { PRINT_TILE_OPTIONS } from '../types.js';
 
 /**
@@ -50,6 +51,8 @@ export function PrintView(props) {
   const blueprintRef = useRef(null);
   const overviewRef = useRef(null);
   const tilesRef = useRef(null);
+  const sheetRef = useRef(null);
+  useModalA11y(sheetRef, onClose);
 
   // 分割時の区画数
   const cols = pattern ? Math.ceil(pattern.width / tileSize) : 0;
@@ -118,7 +121,7 @@ export function PrintView(props) {
   const height = pattern ? pattern.height : 0;
 
   return html`
-    <div class="print-overlay" role="dialog" aria-modal="true" aria-label="印刷プレビュー">
+    <div class="print-overlay" role="dialog" aria-modal="true" aria-label="印刷プレビュー" ref=${sheetRef}>
       <div class="print-controls">
         <button type="button" class="btn btn--primary" onClick=${() => window.print()}>印刷する</button>
         <label class="print-controls__opt">

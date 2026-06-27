@@ -7,6 +7,7 @@
 // ============================================================
 
 import { html, useState, useRef } from '../lib/html.js';
+import { useModalA11y } from '../lib/useModal.js';
 
 /** 画像内に収まる最大の gridAR 矩形(正規化 0..1)を返す */
 function computeMaxCover(iw, ih, gridAR) {
@@ -51,6 +52,8 @@ export function CropModal(props) {
   const [center, setCenter] = useState(initCenter);
   const areaRef = useRef(null);
   const dragging = useRef(false);
+  const sheetRef = useRef(null);
+  useModalA11y(sheetRef, onCancel);
 
   // 現在の枠(正規化)。中央はクランプして枠が画像内に収まるようにする。
   const wN = Math.min(1, maxCover.w / zoom);
@@ -91,7 +94,7 @@ export function CropModal(props) {
 
   return html`
     <div class="cropmodal" role="dialog" aria-modal="true" aria-label="使う範囲を選ぶ">
-      <div class="cropmodal__sheet">
+      <div class="cropmodal__sheet" ref=${sheetRef}>
         <div class="cropmodal__head">
           <strong>使う範囲を選ぶ</strong>
           <span class="muted">枠は ${gridW}×${gridH} の比率です。ドラッグ（押したまま動かす）で位置を変え、スライダーで拡大できます。</span>

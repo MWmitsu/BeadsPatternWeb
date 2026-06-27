@@ -9,6 +9,7 @@
 // ============================================================
 
 import { html, useState, useEffect, useRef, useMemo } from '../lib/html.js';
+import { useModalA11y } from '../lib/useModal.js';
 import { FONT_PRESETS, getFont } from '../data/textFonts.js';
 import { renderCompositionToCanvas, splitGraphemes, NUDGE_STEP } from '../utils/textCompose.js';
 
@@ -39,6 +40,8 @@ const clampNudge = (v) => Math.max(-NUDGE_LIMIT, Math.min(NUDGE_LIMIT, v || 0));
 
 export function TextStudioModal(props) {
   const { initialState = {}, onApply, onCancel, onPersist } = props;
+  const sheetRef = useRef(null);
+  useModalA11y(sheetRef, onCancel);
   // 開き直しても消えないよう、前回の設定(initialState)から初期化する
   const init = initialState || {};
 
@@ -323,7 +326,7 @@ export function TextStudioModal(props) {
 
   return html`
     <div class="textstudio" role="dialog" aria-modal="true" aria-label="文字をデザインする">
-      <div class="textstudio__sheet">
+      <div class="textstudio__sheet" ref=${sheetRef}>
         <div class="textstudio__head">
           <strong>文字をデザインする</strong>
           <button class="textstudio__close" type="button" onClick=${onCancel} aria-label="閉じる">×</button>

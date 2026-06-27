@@ -8,10 +8,12 @@
 //   「完成にして在庫から引く」で、この作品の使用分を在庫の消費として記録(取り消し可)。
 // ============================================================
 
-import { html } from '../lib/html.js';
+import { html, useRef } from '../lib/html.js';
 import { matchToPalette, neededCount } from '../utils/beadMatch.js';
+import { useModalA11y } from '../lib/useModal.js';
 
 export function BeadListModal(props) {
+  const sheetRef = useRef(null);
   const {
     colors = [],
     totalBeads = 0,
@@ -30,6 +32,7 @@ export function BeadListModal(props) {
     onSetInventory,
     onClose,
   } = props;
+  useModalA11y(sheetRef, onClose);
 
   const sorted = colors.slice().sort((a, b) => a.id - b.id);
   const needOf = (c) => neededCount(c.count, bufferPercent);
@@ -75,7 +78,7 @@ export function BeadListModal(props) {
 
   return html`
     <div class="beadlist" role="dialog" aria-modal="true" aria-label="ビーズ一覧">
-      <div class="beadlist__sheet">
+      <div class="beadlist__sheet" ref=${sheetRef}>
         <div class="beadlist__head">
           <strong>ビーズ一覧${canInventory ? '・在庫' : ''}</strong>
           ${paletteName ? html`<span class="badge">${paletteName}</span>` : null}

@@ -7,10 +7,13 @@
 // ============================================================
 
 import { html, useRef, useEffect } from '../lib/html.js';
+import { useModalA11y } from '../lib/useModal.js';
 
 export function QrModal(props) {
   const { matrix, url, title, onClose, onCopy, onSave } = props;
   const canvasRef = useRef(null);
+  const sheetRef = useRef(null);
+  useModalA11y(sheetRef, onClose);
 
   // QR行列をキャンバスへ描画（量子化領域=余白4モジュール付き、にじみ無し）
   useEffect(() => {
@@ -39,7 +42,7 @@ export function QrModal(props) {
 
   return html`
     <div class="qrmodal" role="dialog" aria-modal="true" aria-label="QRコードで共有">
-      <div class="qrmodal__sheet">
+      <div class="qrmodal__sheet" ref=${sheetRef}>
         <div class="qrmodal__head">
           <strong>QRコードで共有</strong>
           <button class="qrmodal__close" type="button" onClick=${onClose} aria-label="閉じる">×</button>
