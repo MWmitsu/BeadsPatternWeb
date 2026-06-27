@@ -7,9 +7,9 @@
 
 import { renderPatternToCanvas } from '../lib/renderPattern.js';
 
-/** ファイル名に使えない文字(\ / : * ? " < > |)を _ に置換する */
-function sanitizeName(s) {
-  return String(s || '').replace(/[\\/:*?"<>|]/g, '_').trim() || 'beads';
+/** ファイル名に使えない文字(\ / : * ? " < > |)を _ に置換する(空なら fallback)。 */
+export function sanitizeName(s, fallback = 'beads') {
+  return String(s || '').replace(/[\\/:*?"<>|]/g, '_').trim() || fallback;
 }
 
 /** Blob/File を a 要素経由でダウンロードする(主にPC用)。 */

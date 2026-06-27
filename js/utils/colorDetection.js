@@ -127,9 +127,19 @@ export function detectBeadPattern(imageData, settings) {
       }
     }
   } else {
+    // 同じRGBは結果も同じなので、色→パレットindex をキャッシュして線形探索を省く。
+    // (ディザリング時は誤差で値が毎回変わるためキャッシュしない)
+    const idxCache = new Map();
     for (let i = 0; i < cellCount; i++) {
       if (isBg[i]) continue;
-      assigned[i] = nearestIndex(wr[i], wg[i], wb[i], palette);
+      const r = wr[i] | 0, g = wg[i] | 0, b = wb[i] | 0;
+      const key = (r << 16) | (g << 8) | b;
+      let idx = idxCache.get(key);
+      if (idx === undefined) {
+        idx = nearestIndex(wr[i], wg[i], wb[i], palette);
+        idxCache.set(key, idx);
+      }
+      assigned[i] = idx;
     }
   }
 

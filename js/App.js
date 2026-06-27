@@ -52,6 +52,7 @@ import { TextStudioModal } from './components/TextStudioModal.js';
 import { BEAD_PALETTES } from './data/beadPalettes.js';
 import { snapPatternToPalette, matchToPalette } from './utils/beadMatch.js';
 import { makePlateMask } from './utils/plateShape.js';
+import { sanitizeName } from './utils/exportPng.js';
 import {
   encodePatternToData,
   decodeDataToPattern,
@@ -890,7 +891,7 @@ export function App() {
     canvas.toBlob((blob) => {
       if (!blob) return;
       // タイトルに / : * ? 等が含まれてもファイル名が壊れないようにする
-      const safeTitle = String(title || '').replace(/[\\/:*?"<>|]/g, '_').trim() || 'beads';
+      const safeTitle = sanitizeName(title);
       const fname = safeTitle + '.png';
       const file = new File([blob], fname, { type: 'image/png' });
       const downloadFallback = () => {
@@ -1003,7 +1004,7 @@ export function App() {
     if (!canvas) return;
     canvas.toBlob((blob) => {
       if (!blob) return;
-      const safeTitle = String(title || '').replace(/[\\/:*?"<>|]/g, '_').trim() || 'beads';
+      const safeTitle = sanitizeName(title);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

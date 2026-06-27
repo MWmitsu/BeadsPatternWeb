@@ -11,13 +11,8 @@
 // ============================================================
 
 import { html, useRef } from '../lib/html.js';
-import { exportFinishedPng, exportNumberedPng } from '../utils/exportPng.js';
+import { exportFinishedPng, exportNumberedPng, sanitizeName } from '../utils/exportPng.js';
 import { exportColorsCsv } from '../utils/exportCsv.js';
-
-/** ファイル名に使えない文字を _ に置換する */
-function sanitizeName(s, fallback) {
-  return String(s || '').replace(/[\\/:*?"<>|]/g, '_').trim() || fallback;
-}
 
 /**
  * 出力パネル
