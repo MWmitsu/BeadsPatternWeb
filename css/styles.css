@@ -679,7 +679,10 @@ input.warn--error {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
+  font-weight: 700;
 }
+/* 色だけに頼らず、選択中は先頭にチェック印を出す(色覚に配慮) */
+.viewmode__tab--active::before { content: '✓ '; }
 
 /* 塗りモードのヒント */
 .edit-hint {
@@ -1418,4 +1421,13 @@ input.textstudio__text { width: 100%; font-size: 16px; }
   .print-tile:last-child { break-after: auto; page-break-after: auto; }
   .print-overview { break-after: page; page-break-after: always; }
   @page { margin: 12mm; }
+}
+
+/* ---- タッチ端末では小さな操作子も最低44pxにして押しやすく(誤タップ防止) ---- */
+@media (pointer: coarse) {
+  .viewmode__tab { min-height: 44px; }
+  .palette__picker { min-width: 44px; min-height: 44px; }
+  .beadlist__step { min-width: 44px; min-height: 44px; }
+  .beadlist__inv-input { min-height: 44px; }
+  .bead-canvas__block-sel { min-height: 44px; }
 }

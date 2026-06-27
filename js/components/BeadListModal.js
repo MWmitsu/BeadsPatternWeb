@@ -9,7 +9,7 @@
 // ============================================================
 
 import { html } from '../lib/html.js';
-import { matchToPalette } from '../utils/beadMatch.js';
+import { matchToPalette, neededCount } from '../utils/beadMatch.js';
 
 export function BeadListModal(props) {
   const {
@@ -32,7 +32,7 @@ export function BeadListModal(props) {
   } = props;
 
   const sorted = colors.slice().sort((a, b) => a.id - b.id);
-  const needOf = (c) => (bufferPercent > 0 ? Math.ceil(c.count * (1 + bufferPercent / 100)) : c.count);
+  const needOf = (c) => neededCount(c.count, bufferPercent);
   const totalNeed = sorted.reduce((s, c) => s + needOf(c), 0);
   const cm = (n) => (n * sizeMm) / 10;
   const sizeText = sizeMm > 0

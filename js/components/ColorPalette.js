@@ -4,13 +4,13 @@
 // 各色を行として表示し、HEX・色名の編集、
 // 「この色で塗る」選択、他色への統合を行う。
 //
-// TODO(将来拡張): スポイト / 塗りつぶし / 範囲選択 / Undo-Redo / 作業チェック。
+// 編集ツール(スポイト/塗りつぶし/Undo-Redo/作業チェック)は BeadCanvas 側に実装済み。残課題: 矩形範囲選択。
 // ============================================================
 
 import { html, useState, useEffect } from '../lib/html.js';
 import { COLOR_NAMES } from '../types.js';
 import { isValidHex, normalizeHex, textColorFor } from '../utils/colorDistance.js';
-import { matchToPalette } from '../utils/beadMatch.js';
+import { matchToPalette, neededCount } from '../utils/beadMatch.js';
 
 /**
  * @param {Object} props
@@ -98,7 +98,7 @@ function PaletteRow(props) {
 
   // 近い市販ビーズ色(目安)と必要数(個数 + 予備%)
   const bead = beadPaletteColors ? matchToPalette(color.hex, beadPaletteColors) : null;
-  const need = bufferPercent > 0 ? Math.ceil(color.count * (1 + bufferPercent / 100)) : color.count;
+  const need = neededCount(color.count, bufferPercent);
 
   // 入力途中の値はローカルで保持(無効なHEXでも一時的に保持できるように)
   const [hexInput, setHexInput] = useState(color.hex);

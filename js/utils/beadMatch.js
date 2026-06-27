@@ -12,6 +12,19 @@ import { recountColors } from './colorDetection.js';
 import { BACKGROUND_COLOR_ID } from '../types.js';
 
 /**
+ * 購入見積りの「必要数」= 使用個数に予備%を足して切り上げ。
+ * 画面・印刷・買い物リスト・CSV で同じ値を出すため一箇所に集約する。
+ * @param {number} count 使用個数
+ * @param {number} bufferPercent 予備%(0で予備なし)
+ * @returns {number}
+ */
+export function neededCount(count, bufferPercent) {
+  // 整数で掛けてから割る(count*1.1 が 110.00000…1 になる浮動小数の誤差で
+  // 必要数が1個多くなるのを防ぐ)。
+  return bufferPercent > 0 ? Math.ceil((count * (100 + bufferPercent)) / 100) : count;
+}
+
+/**
  * hex に最も近いビーズ色のindexを返す(RGB距離)。
  * @param {string} hex 検出色 "#RRGGBB"
  * @param {Array<{code:string,name:string,hex:string}>} paletteColors ビーズ色パレット

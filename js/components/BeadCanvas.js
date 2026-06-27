@@ -393,11 +393,17 @@ export function BeadCanvas(props) {
     ? `transform: translate(${view.tx}px, ${view.ty}px) scale(${view.scale})`
     : null;
 
+  const canvasAria = pattern
+    ? `図案 ${pattern.width}×${pattern.height}マス、${(pattern.colors || []).length}色、ビーズ計${totalBeads}個`
+      + (checkMode ? `。作業チェック ${doneCount} / ${totalBeads}` : '')
+    : '図案プレビュー';
   const canvasEl = html`
     <canvas
       ref=${canvasRef}
       class=${canvasClass}
       style=${canvasStyle}
+      role="img"
+      aria-label=${canvasAria}
       onPointerDown=${pointerActive ? onPointerDown : null}
       onPointerMove=${pointerActive ? onPointerMove : null}
       onPointerUp=${pointerActive ? onPointerUp : null}

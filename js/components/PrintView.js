@@ -16,7 +16,7 @@ import {
   renderTileOverviewCanvas,
 } from '../lib/renderPattern.js';
 import { textColorFor } from '../utils/colorDistance.js';
-import { matchToPalette } from '../utils/beadMatch.js';
+import { matchToPalette, neededCount } from '../utils/beadMatch.js';
 import { PRINT_TILE_OPTIONS } from '../types.js';
 
 /**
@@ -187,7 +187,7 @@ export function PrintView(props) {
               </thead>
               <tbody>
                 ${sortedColors.map((c) => {
-                  const need = bufferPercent > 0 ? Math.ceil(c.count * (1 + bufferPercent / 100)) : c.count;
+                  const need = neededCount(c.count, bufferPercent);
                   const bead = beadPaletteColors ? matchToPalette(c.hex, beadPaletteColors) : null;
                   return html`
                     <tr key=${c.id}>

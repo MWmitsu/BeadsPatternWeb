@@ -5,7 +5,7 @@
 // UTF-8 BOM 付きでダウンロードする。
 // ============================================================
 
-import { matchToPalette } from './beadMatch.js';
+import { matchToPalette, neededCount } from './beadMatch.js';
 
 /**
  * CSV の1セルを簡易エスケープする。
@@ -36,7 +36,7 @@ export function buildColorsCsv(colors, opts = {}) {
   const lines = [header.map(escapeCsvCell).join(',')];
 
   for (const c of colors) {
-    const need = bufferPercent > 0 ? Math.ceil(c.count * (1 + bufferPercent / 100)) : c.count;
+    const need = neededCount(c.count, bufferPercent);
     const row = [
       c.id,
       c.hex,

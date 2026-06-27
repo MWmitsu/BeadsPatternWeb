@@ -56,7 +56,6 @@ import {
   encodePatternToData,
   decodeDataToPattern,
   SHARE_HASH_KEY,
-  estimateHashLength,
 } from './utils/shareCodec.js';
 import { TEMPLATES, buildTemplate } from './data/templates.js';
 
@@ -387,6 +386,12 @@ export function App() {
           backgroundAsWhite: bgWhite,
         });
         setPattern(maskOffShape(result, st.plateShape));
+        // 背景の自動消去などでビーズが1個も残らなかったら、黙って空にせず案内する
+        if (!result.totalBeads || result.colors.length === 0) {
+          flash(st.removeBackground
+            ? '背景を消したら何も残りませんでした。「背景の扱い」を『白として扱う』に変えてお試しください。'
+            : 'ビーズのマスがありませんでした。画像や範囲を見直してください。');
+        }
         setCreatedAt(new Date().toISOString());
         setEditColorId(null);
         setCheckMode(false);
@@ -927,11 +932,18 @@ export function App() {
       colors: pattern.colors.map((c) => c.hex),
       grid,
     });
-    if (estimateHashLength(data) > 14000) {
-      setError('図案が大きいため、共有リンクが長くなりすぎます。「画像を共有」をご利用ください。');
+    const url = location.origin + location.pathname + '#' + SHARE_HASH_KEY + '=' + data;
+    // 実際のURL長で判定し、相手側で正しく復元できることを自己チェックする
+    // (「コピーしました」と言いつつ受け取り側が空白…という事故を防ぐ)。
+    let restorable = false;
+    try {
+      const dec = decodeDataToPattern(data);
+      restorable = !!(dec && Array.isArray(dec.grid) && dec.grid.length === pattern.width * pattern.height);
+    } catch (_) {}
+    if (url.length > 8000 || !restorable) {
+      setError('図案が大きいため、共有リンクが作れませんでした。「画像を共有」をご利用ください。');
       return;
     }
-    const url = location.origin + location.pathname + '#' + SHARE_HASH_KEY + '=' + data;
     const copyToClipboard = () => {
       const ok = () => flash('共有リンクをコピーしました。メールやSNSに貼り付けて送れます。');
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1142,21 +1154,20 @@ export function App() {
 
   // ---- 自動プレビュー: 変換に関わる設定を変えたら少し待って自動で作り直す ----
   // 手動編集後・作業チェック中・画像なしのときはしない(編集や進捗を守る)。crop は決定時に直接変換するため除く。
-  const dconv = settings.detection;
-  const convertSig = [
-    settings.width, settings.height, settings.fitMode,
-    settings.backgroundAsWhite, settings.removeBackground,
-    dconv.maxColors, dconv.colorDistanceThreshold, dconv.mergeMinorColors,
-    dconv.minorColorCountThreshold, dconv.dithering, dconv.contrastCorrection, dconv.outlineEnhancement,
-  ].join('|');
+  // 署名は convertSignatureOf に一本化(二重定義による自動プレビュー不整合を防ぐ)。
+  const convertSig = convertSignatureOf(settings);
   useEffect(() => {
     if (convertSigSkipRef.current) { convertSigSkipRef.current = false; return; }
     if (!image || editedRef.current || doneSet.size > 0) return;
     // 直前に同じ設定で変換済みなら何もしない(明示変換直後の重複自動変換を防ぐ)
     if (convertSig === lastConvertSigRef.current) return;
+    // 大きい図案は変換が重いので、自動プレビューの待ち時間をマス数に応じて延ばす
+    // (小さいうちは軽快に、大きいときは「画像から変換」を押すまで無駄な再変換をしない)
+    const cells = (clampDim(settings.width) || 1) * (clampDim(settings.height) || 1);
+    const debounce = cells > WARN.hugeBeadCount ? 1500 : cells > WARN.largeBeadCount ? 900 : 500;
     const id = setTimeout(() => {
       if (image && !editedRef.current && doneSet.size === 0) convertWith(image);
-    }, 500);
+    }, debounce);
     return () => clearTimeout(id);
     // eslint-disable-next-line
   }, [convertSig]);
@@ -1511,12 +1522,12 @@ export function App() {
 
       ${error &&
       html`
-        <div class="banner banner--error">
+        <div class="banner banner--error" role="alert">
           <span>${error}</span>
           <button class="banner__close" type="button" onClick=${() => setError(null)}>×</button>
         </div>
       `}
-      ${notice && html`<div class="banner banner--success"><span>${notice}</span></div>`}
+      ${notice && html`<div class="banner banner--success" role="status" aria-live="polite"><span>${notice}</span></div>`}
 
       <main class=${'app__main' + (pattern ? '' : ' app__main--empty')} data-tab=${mobileTab}>
         <!-- ① つくる -->
@@ -1560,12 +1571,14 @@ export function App() {
         <div class="zone zone--figure" data-sec="figure">
           ${pattern
             ? html`
-                <div class="viewmode">
+                <div class="viewmode" role="tablist" aria-label="表示の切り替え">
                   ${VIEW_MODES.map(
                     (m) => html`
                       <button
                         key=${m.key}
                         type="button"
+                        role="tab"
+                        aria-selected=${viewMode === m.key ? 'true' : 'false'}
                         class=${'viewmode__tab' + (viewMode === m.key ? ' viewmode__tab--active' : '')}
                         onClick=${() => setViewMode(m.key)}
                       >
