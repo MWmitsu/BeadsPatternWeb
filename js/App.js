@@ -1197,9 +1197,15 @@ export function App() {
   }, [checkMode]);
 
   // ---- プロジェクト構築 ----
+  // grid(色IDの1次元配列)は pattern が変わったときだけ作り直す。
+  // 作業チェック(doneSet)だけ変わるたびに全マス(最大16万)を再生成するのを避ける。
+  const gridMemo = useMemo(
+    () => (pattern ? cellsToGrid(pattern.cells, pattern.width, pattern.height) : null),
+    [pattern]
+  );
   const buildProjectBase = (withThumbnail) => {
     const id = currentId || draftIdRef.current;
-    const grid = cellsToGrid(pattern.cells, pattern.width, pattern.height);
+    const grid = gridMemo || cellsToGrid(pattern.cells, pattern.width, pattern.height);
     let thumbnail = originalUrl || undefined;
     if (withThumbnail) {
       try {

@@ -11,7 +11,7 @@
 // ============================================================
 
 import { html, useRef, useEffect, useState } from '../lib/html.js';
-import { drawPattern } from '../lib/renderPattern.js';
+import { drawPattern, drawDoneOverlay } from '../lib/renderPattern.js';
 import { BACKGROUND_COLOR_ID } from '../types.js';
 
 // 区画(ブロック)チェックのブロックサイズ候補(0=1マスずつ)
@@ -106,6 +106,7 @@ export function BeadCanvas(props) {
   } = props;
 
   const canvasRef = useRef(null);
+  const baseRef = useRef(null); // チェック印を除いた図案ベース(オフスクリーン)
   const stageRef = useRef(null);
   const dragRef = useRef(null); // 描画/作業ドラッグ
   const pointersRef = useRef(new Map()); // pointerId -> {x,y}(画面座標)
@@ -136,17 +137,40 @@ export function BeadCanvas(props) {
     return Math.max(1, Math.min(cs, areaCap));
   })();
 
-  useEffect(() => {
+  // 可視canvasへ「ベース(チェック印なし)＋チェック印」を合成する。
+  // チェック印は doneSet ぶんだけ描くので、作業チェックのたびに全マスを描き直さずに済む。
+  function compositeToVisible(base, cs) {
     const canvas = canvasRef.current;
-    if (!canvas || !pattern) return;
-    const cs = renderCell;
-    canvas.width = Math.max(1, pattern.width * cs);
-    canvas.height = Math.max(1, pattern.height * cs);
+    if (!canvas || !base || !pattern) return;
+    if (canvas.width !== base.width) canvas.width = base.width;
+    if (canvas.height !== base.height) canvas.height = base.height;
     const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(base, 0, 0);
+    drawDoneOverlay(ctx, pattern, doneSet, cs);
+  }
+
+  // 重い全マス描画は pattern/表示モード/解像度/形状が変わったときだけ。結果をベースに保持。
+  useEffect(() => {
+    if (!canvasRef.current || !pattern) return;
+    if (!baseRef.current) baseRef.current = document.createElement('canvas');
+    const base = baseRef.current;
+    const cs = renderCell;
+    base.width = Math.max(1, pattern.width * cs);
+    base.height = Math.max(1, pattern.height * cs);
+    const bctx = base.getContext('2d');
     const opts = buildDrawOpts(viewMode);
     // プレビューは背景を塗らず透明にし、空マス(透明背景)を市松模様で見せる
-    drawPattern(ctx, pattern, { ...opts, cellSize: cs, doneSet, plateMask, round, backgroundColor: 'transparent' });
-  }, [pattern, viewMode, renderCell, doneSet, plateMask, round]);
+    drawPattern(bctx, pattern, { ...opts, cellSize: cs, plateMask, round, backgroundColor: 'transparent', skipDone: true });
+    compositeToVisible(base, cs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pattern, viewMode, renderCell, plateMask, round]);
+
+  // 作業チェック(doneSet)変更時は、ベースを再利用してチェック印だけ軽く重ねる。
+  useEffect(() => {
+    if (baseRef.current && canvasRef.current && pattern) compositeToVisible(baseRef.current, renderCell);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doneSet]);
 
   // ---- 表示変換(全画面) ----
   const viewportRect = () => (stageRef.current ? stageRef.current.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 });

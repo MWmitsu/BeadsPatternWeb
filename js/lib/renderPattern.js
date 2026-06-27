@@ -117,22 +117,10 @@ export function drawPattern(ctx, pattern, opts = {}) {
     }
 
     // --- 作業済みチェック(白く覆ってチェックマーク) ---
-    if (doneSet && doneSet.has(cell.y * width + cell.x)) {
-      ctx.globalAlpha = 0.6;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(px, py, cellSize, cellSize);
-      ctx.globalAlpha = 1;
-      if (cellSize >= 7) {
-        ctx.strokeStyle = '#1d7a47';
-        ctx.lineWidth = Math.max(1, cellSize * 0.12);
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(px + cellSize * 0.24, py + cellSize * 0.54);
-        ctx.lineTo(px + cellSize * 0.43, py + cellSize * 0.73);
-        ctx.lineTo(px + cellSize * 0.76, py + cellSize * 0.29);
-        ctx.stroke();
-      }
+    // skipDone のときはここで描かず、別レイヤ(drawDoneOverlay)で重ねる。
+    // (作業チェックのたびに全マスを描き直さず、軽く再合成できるようにするため)
+    if (!opts.skipDone && doneSet && doneSet.has(cell.y * width + cell.x)) {
+      drawDoneMark(ctx, px, py, cellSize);
     }
   }
 
@@ -168,6 +156,43 @@ export function drawPattern(ctx, pattern, opts = {}) {
       ctx.lineTo(W, gy);
     }
     ctx.stroke();
+  }
+}
+
+/** 1マスぶんの「作業済み」印(白覆い＋チェック)を描く。 */
+function drawDoneMark(ctx, px, py, cellSize) {
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(px, py, cellSize, cellSize);
+  ctx.globalAlpha = 1;
+  if (cellSize >= 7) {
+    ctx.strokeStyle = '#1d7a47';
+    ctx.lineWidth = Math.max(1, cellSize * 0.12);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(px + cellSize * 0.24, py + cellSize * 0.54);
+    ctx.lineTo(px + cellSize * 0.43, py + cellSize * 0.73);
+    ctx.lineTo(px + cellSize * 0.76, py + cellSize * 0.29);
+    ctx.stroke();
+  }
+}
+
+/**
+ * 作業チェック印だけを重ねて描く(ベース描画は skipDone:true で別に用意しておく)。
+ * doneSet(index集合)だけを走査するので、チェック数に比例した軽いコストで済む。
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {{cells:Array,width:number}} pattern
+ * @param {Set<number>|null} doneSet
+ * @param {number} cellSize
+ */
+export function drawDoneOverlay(ctx, pattern, doneSet, cellSize) {
+  if (!doneSet || !doneSet.size) return;
+  const { cells, width } = pattern;
+  for (const idx of doneSet) {
+    const cell = cells[idx];
+    if (!cell || cell.colorId === BACKGROUND_COLOR_ID) continue;
+    drawDoneMark(ctx, cell.x * cellSize, cell.y * cellSize, cellSize);
   }
 }
 
